@@ -1,8 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
 using System.Collections.Generic;
-using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Interfaces;
 using Microsoft.OpenApi.Writers;
 
@@ -27,7 +26,10 @@ namespace Microsoft.OpenApi.Models
         /// <summary>
         /// An enumeration of string values to be used if the substitution options are from a limited set.
         /// </summary>
-        public List<string> Enum { get; set; } = new List<string>();
+        /// <remarks>
+        /// If the server variable in the OpenAPI document has no <code>enum</code> member, this property will be null.
+        /// </remarks>
+        public List<string> Enum { get; set; }
 
         /// <summary>
         /// This object MAY be extended with Specification Extensions.
@@ -37,7 +39,7 @@ namespace Microsoft.OpenApi.Models
         /// <summary>
         /// Parameterless constructor
         /// </summary>
-        public OpenApiServerVariable() {}
+        public OpenApiServerVariable() { }
 
         /// <summary>
         /// Initializes a copy of an <see cref="OpenApiServerVariable"/> object
@@ -46,8 +48,16 @@ namespace Microsoft.OpenApi.Models
         {
             Description = serverVariable?.Description;
             Default = serverVariable?.Default;
-            Enum = serverVariable?.Enum != null ? new List<string>(serverVariable?.Enum) : serverVariable?.Enum;
+            Enum = serverVariable?.Enum != null ? new(serverVariable?.Enum) : serverVariable?.Enum;
             Extensions = serverVariable?.Extensions != null ? new Dictionary<string, IOpenApiExtension>(serverVariable?.Extensions) : serverVariable?.Extensions;
+        }
+
+        /// <summary>
+        /// Serialize <see cref="OpenApiServerVariable"/> to Open Api v3.1
+        /// </summary>
+        public void SerializeAsV31(IOpenApiWriter writer)
+        {
+            SerializeInternal(writer, OpenApiSpecVersion.OpenApi3_1);
         }
 
         /// <summary>
@@ -55,10 +65,15 @@ namespace Microsoft.OpenApi.Models
         /// </summary>
         public void SerializeAsV3(IOpenApiWriter writer)
         {
-            if (writer == null)
-            {
-                throw Error.ArgumentNull(nameof(writer));
-            }
+            SerializeInternal(writer, OpenApiSpecVersion.OpenApi3_0);
+        }
+
+        /// <summary>
+        /// Serialize <see cref="OpenApiServerVariable"/> to Open Api v3.0
+        /// </summary>
+        private void SerializeInternal(IOpenApiWriter writer, OpenApiSpecVersion version)
+        {
+            Utils.CheckArgumentNull(writer);;
 
             writer.WriteStartObject();
 
@@ -72,7 +87,7 @@ namespace Microsoft.OpenApi.Models
             writer.WriteOptionalCollection(OpenApiConstants.Enum, Enum, (w, s) => w.WriteValue(s));
 
             // specification extensions
-            writer.WriteExtensions(Extensions, OpenApiSpecVersion.OpenApi3_0);
+            writer.WriteExtensions(Extensions, version);
 
             writer.WriteEndObject();
         }

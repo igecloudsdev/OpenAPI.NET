@@ -1,7 +1,8 @@
-﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT license.
 
 using System;
+using Microsoft.OpenApi.Exceptions;
 using Microsoft.OpenApi.Interfaces;
 using Microsoft.OpenApi.Properties;
 
@@ -18,28 +19,50 @@ namespace Microsoft.OpenApi.Validations
         internal abstract Type ElementType { get; }
 
         /// <summary>
+        /// Validation rule Name.
+        /// </summary>
+        public string Name { get; }
+
+        /// <summary>
         /// Validate the object.
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="item">The object item.</param>
         internal abstract void Evaluate(IValidationContext context, object item);
+
+        internal ValidationRule(string name)
+        {
+            Name = !string.IsNullOrEmpty(name) ? name : throw new ArgumentNullException(nameof(name));
+        }
     }
 
     /// <summary>
     /// Class containing validation rule logic for <see cref="IOpenApiElement"/>.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class ValidationRule<T> : ValidationRule where T : IOpenApiElement
+    public class ValidationRule<T> : ValidationRule
     {
         private readonly Action<IValidationContext, T> _validate;
+        
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ValidationRule"/> class.
+        /// </summary>        
+        /// <param name="validate">Action to perform the validation.</param>
+        [Obsolete("Please use the other constructor and specify a name")]
+        public ValidationRule(Action<IValidationContext, T> validate)
+            : this (Guid.NewGuid().ToString("D"), validate)
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ValidationRule"/> class.
         /// </summary>
+        /// <param name="name">Validation rule name.</param>
         /// <param name="validate">Action to perform the validation.</param>
-        public ValidationRule(Action<IValidationContext, T> validate)
+        public ValidationRule(string name, Action<IValidationContext, T> validate)
+            : base(name) 
         {
-            _validate = validate ?? throw Error.ArgumentNull(nameof(validate));
+            _validate = Utils.CheckArgumentNull(validate);            
         }
 
         internal override Type ElementType
@@ -49,22 +72,17 @@ namespace Microsoft.OpenApi.Validations
 
         internal override void Evaluate(IValidationContext context, object item)
         {
-            if (context == null)
-            {
-                throw Error.ArgumentNull(nameof(context));
-            }
-
             if (item == null)
             {
                 return;
             }
 
-            if (!(item is T))
+            if (item is not T)
             {
-                throw Error.Argument(string.Format(SRResource.InputItemShouldBeType, typeof(T).FullName));
+                throw new ArgumentException(string.Format(SRResource.InputItemShouldBeType, typeof(T).FullName));
             }
 
-            T typedItem = (T)item;
+            var typedItem = (T)item;
             this._validate(context, typedItem);
         }
     }

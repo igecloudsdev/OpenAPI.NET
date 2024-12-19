@@ -1,20 +1,21 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
 using FluentAssertions;
 using Microsoft.OpenApi.Models;
-using Microsoft.OpenApi.Readers.V2;
+using Microsoft.OpenApi.Reader;
+using Microsoft.OpenApi.Reader.V2;
 using Xunit;
 
 namespace Microsoft.OpenApi.Readers.Tests
 {
     public class ConvertToOpenApiReferenceV2Tests
     {
-        public OpenApiDiagnostic Diagnostic{get;}
+        public OpenApiDiagnostic Diagnostic { get; }
 
         public ConvertToOpenApiReferenceV2Tests()
         {
-            Diagnostic = new OpenApiDiagnostic();
+            Diagnostic = new();
         }
 
         [Fact]

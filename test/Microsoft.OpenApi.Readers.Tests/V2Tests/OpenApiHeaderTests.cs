@@ -1,13 +1,13 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
-using System.Collections.Generic;
 using System.IO;
 using FluentAssertions;
+using FluentAssertions.Equivalency;
 using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
-using Microsoft.OpenApi.Readers.ParseNodes;
-using Microsoft.OpenApi.Readers.V2;
+using Microsoft.OpenApi.Reader.ParseNodes;
+using Microsoft.OpenApi.Reader.V2;
 using Xunit;
 
 namespace Microsoft.OpenApi.Readers.Tests.V2Tests
@@ -34,13 +34,16 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
             header.Should().BeEquivalentTo(
                 new OpenApiHeader
                 {
-                    Schema = new OpenApiSchema()
+                    Schema = new()
                     {
-                        Type = "number",
+                        Type = JsonSchemaType.Number,
                         Format = "float",
-                        Default = new OpenApiFloat(5)
+                        Default = new OpenApiAny(5).Node
                     }
-                });
+                },
+                options => options
+                .IgnoringCyclicReferences()
+                .Excluding(x => x.Schema.Default.Parent));
         }
 
         [Fact]
@@ -60,18 +63,20 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
             header.Should().BeEquivalentTo(
                 new OpenApiHeader
                 {
-                    Schema = new OpenApiSchema()
+                    Schema = new()
                     {
-                        Type = "number",
+                        Type = JsonSchemaType.Number,
                         Format = "float",
                         Enum =
                         {
-                            new OpenApiFloat(7),
-                            new OpenApiFloat(8),
-                            new OpenApiFloat(9)
+                            new OpenApiAny(7).Node,
+                            new OpenApiAny(8).Node,
+                            new OpenApiAny(9).Node
                         }
                     }
-                });
+                }, options => options.IgnoringCyclicReferences()
+                                     .Excluding((IMemberInfo memberInfo) =>
+                                        memberInfo.Path.EndsWith("Parent")));
         }
     }
 }

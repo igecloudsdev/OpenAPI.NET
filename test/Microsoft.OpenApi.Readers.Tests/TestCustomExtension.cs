@@ -1,9 +1,11 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
+using System.Text.Json.Nodes;
 using FluentAssertions;
-using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Interfaces;
+using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi.Reader;
 using Microsoft.OpenApi.Writers;
 using Xunit;
 
@@ -14,33 +16,33 @@ namespace Microsoft.OpenApi.Readers.Tests
         [Fact]
         public void ParseCustomExtension()
         {
-            var description = @"
-openapi: 3.0.0
-info: 
-    title: A doc with an extension
-    version: 1.0.0
-    x-foo: 
-        bar: hey
-        baz: hi!
-paths: {}
-";
-            var settings = new OpenApiReaderSettings()
+            var description =
+                """
+                openapi: 3.0.0
+                info:
+                    title: A doc with an extension
+                    version: 1.0.0
+                    x-foo:
+                        bar: hey
+                        baz: hi!
+                paths: {}
+                """;
+            var settings = new OpenApiReaderSettings
             {
                 ExtensionParsers = { { "x-foo", (a,v) => {
-                        var fooNode = (OpenApiObject)a;
+                        var fooNode = (JsonObject)a;
                         return new FooExtension() {
-                              Bar = (fooNode["bar"] as OpenApiString)?.Value,
-                              Baz = (fooNode["baz"] as OpenApiString)?.Value
+                              Bar = (fooNode["bar"].ToString()),
+                              Baz = (fooNode["baz"].ToString())
                         };
                 } } }
             };
 
-            var reader = new OpenApiStringReader(settings);
-
+            OpenApiReaderRegistry.RegisterReader("yaml", new OpenApiYamlReader());
             var diag = new OpenApiDiagnostic();
-            var doc = reader.Read(description, out diag);
+            var actual = OpenApiDocument.Parse(description, "yaml", settings: settings);
 
-            var fooExtension = doc.Info.Extensions["x-foo"] as FooExtension;
+            var fooExtension = actual.Document.Info.Extensions["x-foo"] as FooExtension;
 
             fooExtension.Should().NotBeNull();
             fooExtension.Bar.Should().Be("hey");

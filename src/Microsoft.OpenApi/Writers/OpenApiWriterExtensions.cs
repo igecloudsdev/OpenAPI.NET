@@ -1,10 +1,11 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Nodes;
 using Microsoft.OpenApi.Interfaces;
 
 namespace Microsoft.OpenApi.Writers
@@ -27,7 +28,7 @@ namespace Microsoft.OpenApi.Writers
                 return;
             }
 
-            CheckArguments(writer, name);
+            Utils.CheckArgumentNullOrEmpty(name);
             writer.WritePropertyName(name);
             writer.WriteValue(value);
         }
@@ -40,7 +41,7 @@ namespace Microsoft.OpenApi.Writers
         /// <param name="value">The property value.</param>
         public static void WriteRequiredProperty(this IOpenApiWriter writer, string name, string value)
         {
-            CheckArguments(writer, name);
+            Utils.CheckArgumentNullOrEmpty(name);
             writer.WritePropertyName(name);
             if (value == null)
             {
@@ -66,7 +67,7 @@ namespace Microsoft.OpenApi.Writers
                 return;
             }
 
-            CheckArguments(writer, name);
+            Utils.CheckArgumentNullOrEmpty(name);
             writer.WritePropertyName(name);
             writer.WriteValue(value);
         }
@@ -89,7 +90,7 @@ namespace Microsoft.OpenApi.Writers
                 return;
             }
 
-            CheckArguments(writer, name);
+            Utils.CheckArgumentNullOrEmpty(name);
             writer.WritePropertyName(name);
             writer.WriteValue(value.Value);
         }
@@ -120,11 +121,12 @@ namespace Microsoft.OpenApi.Writers
         public static void WriteProperty<T>(this IOpenApiWriter writer, string name, T value)
             where T : struct
         {
-            CheckArguments(writer, name);
+            Utils.CheckArgumentNullOrEmpty(name);
             writer.WritePropertyName(name);
             writer.WriteValue(value);
         }
 
+#nullable enable
         /// <summary>
         /// Write the optional Open API object/element.
         /// </summary>
@@ -132,18 +134,16 @@ namespace Microsoft.OpenApi.Writers
         /// <param name="writer">The Open API writer.</param>
         /// <param name="name">The property name.</param>
         /// <param name="value">The property value.</param>
-        /// <param name="action">The proprety value writer action.</param>
+        /// <param name="action">The property value writer action.</param>
         public static void WriteOptionalObject<T>(
             this IOpenApiWriter writer,
             string name,
-            T value,
+            T? value,
             Action<IOpenApiWriter, T> action)
-            where T : IOpenApiElement
         {
             if (value != null)
             {
-                var values = value as IEnumerable;
-                if (values != null && !values.GetEnumerator().MoveNext())
+                if (value is IEnumerable values && !values.GetEnumerator().MoveNext())
                 {
                     return; // Don't render optional empty collections
                 }
@@ -159,15 +159,14 @@ namespace Microsoft.OpenApi.Writers
         /// <param name="writer">The Open API writer.</param>
         /// <param name="name">The property name.</param>
         /// <param name="value">The property value.</param>
-        /// <param name="action">The proprety value writer action.</param>
+        /// <param name="action">The property value writer action.</param>
         public static void WriteRequiredObject<T>(
             this IOpenApiWriter writer,
             string name,
-            T value,
+            T? value,
             Action<IOpenApiWriter, T> action)
-            where T : IOpenApiElement
         {
-            CheckArguments(writer, name, action);
+            Utils.CheckArgumentNull(action);
 
             writer.WritePropertyName(name);
             if (value != null)
@@ -180,6 +179,7 @@ namespace Microsoft.OpenApi.Writers
                 writer.WriteEndObject();
             }
         }
+#nullable restore
 
         /// <summary>
         /// Write the optional of collection string.
@@ -213,7 +213,6 @@ namespace Microsoft.OpenApi.Writers
             string name,
             IEnumerable<T> elements,
             Action<IOpenApiWriter, T> action)
-            where T : IOpenApiElement
         {
             if (elements != null && elements.Any())
             {
@@ -240,6 +239,41 @@ namespace Microsoft.OpenApi.Writers
         }
 
         /// <summary>
+        /// Write the required Open API element map (string to string mapping).
+        /// </summary>
+        /// <param name="writer">The Open API writer.</param>
+        /// <param name="name">The property name.</param>
+        /// <param name="elements">The map values.</param>
+        /// <param name="action">The map element writer action.</param>
+        public static void WriteRequiredMap(
+            this IOpenApiWriter writer,
+            string name,
+            IDictionary<string, string> elements,
+            Action<IOpenApiWriter, string> action)
+        {
+            writer.WriteMapInternal(name, elements, action);
+        }
+
+        /// <summary>
+        /// Write the optional Open API element map (string to string mapping).
+        /// </summary>
+        /// <param name="writer">The Open API writer.</param>
+        /// <param name="name">The property name.</param>
+        /// <param name="elements">The map values.</param>
+        /// <param name="action">The map element writer action.</param>
+        public static void WriteOptionalMap(
+            this IOpenApiWriter writer,
+            string name,
+            IDictionary<string, JsonNode> elements,
+            Action<IOpenApiWriter, JsonNode> action)
+        {
+            if (elements != null && elements.Any())
+            {
+                writer.WriteMapInternal(name, elements, action);
+            }
+        }
+
+        /// <summary>
         /// Write the optional Open API element map (string to string mapping).
         /// </summary>
         /// <param name="writer">The Open API writer.</param>
@@ -259,19 +293,22 @@ namespace Microsoft.OpenApi.Writers
         }
 
         /// <summary>
-        /// Write the required Open API element map (string to string mapping).
+        /// Write the optional Open API element map (string to string mapping).
         /// </summary>
         /// <param name="writer">The Open API writer.</param>
         /// <param name="name">The property name.</param>
         /// <param name="elements">The map values.</param>
         /// <param name="action">The map element writer action.</param>
-        public static void WriteRequiredMap(
+        public static void WriteOptionalMap(
             this IOpenApiWriter writer,
             string name,
-            IDictionary<string, string> elements,
-            Action<IOpenApiWriter, string> action)
+            IDictionary<string, bool> elements,
+            Action<IOpenApiWriter, bool> action)
         {
-            writer.WriteMapInternal(name, elements, action);
+            if (elements != null && elements.Any())
+            {
+                writer.WriteMapInternal(name, elements, action);
+            }
         }
 
         /// <summary>
@@ -340,7 +377,7 @@ namespace Microsoft.OpenApi.Writers
             IEnumerable<T> elements,
             Action<IOpenApiWriter, T> action)
         {
-            CheckArguments(writer, name, action);
+            Utils.CheckArgumentNull(action);
 
             writer.WritePropertyName(name);
             writer.WriteStartArray();
@@ -361,14 +398,14 @@ namespace Microsoft.OpenApi.Writers
 
             writer.WriteEndArray();
         }
-
+        
         private static void WriteMapInternal<T>(
             this IOpenApiWriter writer,
             string name,
             IDictionary<string, T> elements,
             Action<IOpenApiWriter, T> action)
         {
-            WriteMapInternal(writer, name, elements, (w, k, s) => action(w, s));
+            WriteMapInternal(writer, name, elements, (w, _, s) => action(w, s));
         }
 
         private static void WriteMapInternal<T>(
@@ -377,7 +414,7 @@ namespace Microsoft.OpenApi.Writers
             IDictionary<string, T> elements,
             Action<IOpenApiWriter, string, T> action)
         {
-            CheckArguments(writer, name, action);
+            Utils.CheckArgumentNull(action);
 
             writer.WritePropertyName(name);
             writer.WriteStartObject();
@@ -399,39 +436,6 @@ namespace Microsoft.OpenApi.Writers
             }
 
             writer.WriteEndObject();
-        }
-
-        private static void CheckArguments<T>(IOpenApiWriter writer, string name, Action<IOpenApiWriter, T> action)
-        {
-            CheckArguments(writer, name);
-
-            if (action == null)
-            {
-                throw Error.ArgumentNull(nameof(action));
-            }
-        }
-
-        private static void CheckArguments<T>(IOpenApiWriter writer, string name, Action<IOpenApiWriter, string, T> action)
-        {
-            CheckArguments(writer, name);
-
-            if (action == null)
-            {
-                throw Error.ArgumentNull(nameof(action));
-            }
-        }
-
-        private static void CheckArguments(IOpenApiWriter writer, string name)
-        {
-            if (writer == null)
-            {
-                throw Error.ArgumentNull(nameof(writer));
-            }
-
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                throw Error.ArgumentNullOrWhiteSpace(nameof(name));
-            }
         }
     }
 }

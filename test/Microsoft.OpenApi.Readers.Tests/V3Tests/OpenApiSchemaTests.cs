@@ -4,13 +4,18 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json.Nodes;
 using FluentAssertions;
 using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
-using Microsoft.OpenApi.Readers.ParseNodes;
-using Microsoft.OpenApi.Readers.V3;
+using Microsoft.OpenApi.Extensions;
 using SharpYaml.Serialization;
 using Xunit;
+using Microsoft.OpenApi.Reader;
+using Microsoft.OpenApi.Reader.ParseNodes;
+using Microsoft.OpenApi.Reader.V3;
+using FluentAssertions.Equivalency;
+using Microsoft.OpenApi.Models.References;
 
 namespace Microsoft.OpenApi.Readers.Tests.V3Tests
 {
@@ -19,72 +24,27 @@ namespace Microsoft.OpenApi.Readers.Tests.V3Tests
     {
         private const string SampleFolderPath = "V3Tests/Samples/OpenApiSchema/";
 
+        public OpenApiSchemaTests()
+        {
+            OpenApiReaderRegistry.RegisterReader("yaml", new OpenApiYamlReader());
+        }
+
         [Fact]
         public void ParsePrimitiveSchemaShouldSucceed()
         {
-            using (var stream = Resources.GetStream(Path.Combine(SampleFolderPath, "primitiveSchema.yaml")))
-            {
-                var yamlStream = new YamlStream();
-                yamlStream.Load(new StreamReader(stream));
-                var yamlNode = yamlStream.Documents.First().RootNode;
+            using var stream = Resources.GetStream(Path.Combine(SampleFolderPath, "primitiveSchema.yaml"));
+            var yamlStream = new YamlStream();
+            yamlStream.Load(new StreamReader(stream));
+            var yamlNode = yamlStream.Documents.First().RootNode;
 
-                var diagnostic = new OpenApiDiagnostic();
-                var context = new ParsingContext(diagnostic);
-
-                var node = new MapNode(context, (YamlMappingNode)yamlNode);
-
-                // Act
-                var schema = OpenApiV3Deserializer.LoadSchema(node);
-
-                // Assert
-                diagnostic.Should().BeEquivalentTo(new OpenApiDiagnostic());
-
-                schema.Should().BeEquivalentTo(
-                    new OpenApiSchema
-                    {
-                        Type = "string",
-                        Format = "email"
-                    });
-            }
-        }
-
-        [Fact]
-        public void ParsePrimitiveSchemaFragmentShouldSucceed()
-        {
-            using (var stream = Resources.GetStream(Path.Combine(SampleFolderPath, "primitiveSchema.yaml")))
-            {
-                var reader = new OpenApiStreamReader();
-                var diagnostic = new OpenApiDiagnostic();
-
-                // Act
-                var schema = reader.ReadFragment<OpenApiSchema>(stream, OpenApiSpecVersion.OpenApi3_0, out diagnostic);
-
-                // Assert
-                diagnostic.Should().BeEquivalentTo(new OpenApiDiagnostic());
-
-                schema.Should().BeEquivalentTo(
-                    new OpenApiSchema
-                    {
-                        Type = "string",
-                        Format = "email"
-                    });
-            }
-        }
-
-        [Fact]
-        public void ParsePrimitiveStringSchemaFragmentShouldSucceed()
-        {
-            var input = @"
-{ ""type"": ""integer"",
-""format"": ""int64"",
-""default"": 88
-}
-";
-            var reader = new OpenApiStringReader();
             var diagnostic = new OpenApiDiagnostic();
+            var context = new ParsingContext(diagnostic);
+
+            var asJsonNode = yamlNode.ToJsonNode();
+            var node = new MapNode(context, asJsonNode);
 
             // Act
-            var schema = reader.ReadFragment<OpenApiSchema>(input, OpenApiSpecVersion.OpenApi3_0, out diagnostic);
+            var schema = OpenApiV3Deserializer.LoadSchema(node);
 
             // Assert
             diagnostic.Should().BeEquivalentTo(new OpenApiDiagnostic());
@@ -92,11 +52,10 @@ namespace Microsoft.OpenApi.Readers.Tests.V3Tests
             schema.Should().BeEquivalentTo(
                 new OpenApiSchema
                 {
-                    Type = "integer",
-                    Format = "int64",
-                    Default = new OpenApiLong(88)
+                    Type = JsonSchemaType.String,
+                    Format = "email"
                 });
-        }
+        }       
 
         [Fact]
         public void ParseExampleStringFragmentShouldSucceed()
@@ -106,24 +65,20 @@ namespace Microsoft.OpenApi.Readers.Tests.V3Tests
   ""foo"": ""bar"",
   ""baz"": [ 1,2]
 }";
-            var reader = new OpenApiStringReader();
             var diagnostic = new OpenApiDiagnostic();
 
             // Act
-            var openApiAny = reader.ReadFragment<IOpenApiAny>(input, OpenApiSpecVersion.OpenApi3_0, out diagnostic);
+            var openApiAny = OpenApiModelFactory.Parse<OpenApiAny>(input, OpenApiSpecVersion.OpenApi3_0, out diagnostic);
 
             // Assert
             diagnostic.Should().BeEquivalentTo(new OpenApiDiagnostic());
 
-            openApiAny.Should().BeEquivalentTo(
-                new OpenApiObject
+            openApiAny.Should().BeEquivalentTo(new OpenApiAny(
+                new JsonObject
                 {
-                    ["foo"] = new OpenApiString("bar"),
-                    ["baz"] = new OpenApiArray() {
-                        new OpenApiInteger(1),
-                        new OpenApiInteger(2)
-                    }
-                });
+                    ["foo"] = "bar",
+                    ["baz"] = new JsonArray() { 1, 2 }
+                }), options => options.IgnoringCyclicReferences());
         }
 
         [Fact]
@@ -134,71 +89,20 @@ namespace Microsoft.OpenApi.Readers.Tests.V3Tests
   ""foo"",
   ""baz""
 ]";
-            var reader = new OpenApiStringReader();
             var diagnostic = new OpenApiDiagnostic();
 
             // Act
-            var openApiAny = reader.ReadFragment<IOpenApiAny>(input, OpenApiSpecVersion.OpenApi3_0, out diagnostic);
+            var openApiAny = OpenApiModelFactory.Parse<OpenApiAny>(input, OpenApiSpecVersion.OpenApi3_0, out diagnostic);
 
             // Assert
             diagnostic.Should().BeEquivalentTo(new OpenApiDiagnostic());
 
-            openApiAny.Should().BeEquivalentTo(
-                new OpenApiArray
+            openApiAny.Should().BeEquivalentTo(new OpenApiAny(
+                new JsonArray
                 {
-                    new OpenApiString("foo"),
-                    new OpenApiString("baz")
-                });
-        }
-
-        [Fact]
-        public void ParseSimpleSchemaShouldSucceed()
-        {
-            using (var stream = Resources.GetStream(Path.Combine(SampleFolderPath, "simpleSchema.yaml")))
-            {
-                var yamlStream = new YamlStream();
-                yamlStream.Load(new StreamReader(stream));
-                var yamlNode = yamlStream.Documents.First().RootNode;
-
-                var diagnostic = new OpenApiDiagnostic();
-                var context = new ParsingContext(diagnostic);
-
-                var node = new MapNode(context, (YamlMappingNode)yamlNode);
-
-                // Act
-                var schema = OpenApiV3Deserializer.LoadSchema(node);
-
-                // Assert
-                diagnostic.Should().BeEquivalentTo(new OpenApiDiagnostic());
-
-                schema.Should().BeEquivalentTo(
-                    new OpenApiSchema
-                    {
-                        Type = "object",
-                        Required =
-                        {
-                            "name"
-                        },
-                        Properties =
-                        {
-                            ["name"] = new OpenApiSchema
-                            {
-                                Type = "string"
-                            },
-                            ["address"] = new OpenApiSchema
-                            {
-                                Type = "string"
-                            },
-                            ["age"] = new OpenApiSchema
-                            {
-                                Type = "integer",
-                                Format = "int32",
-                                Minimum = 0
-                            }
-                        },
-                        AdditionalPropertiesAllowed = false
-                    });
-            }
+                    "foo",
+                    "baz"
+                }), options => options.IgnoringCyclicReferences());
         }
 
         [Fact]
@@ -211,11 +115,10 @@ get:
     '200':
       description: Ok
 ";
-            var reader = new OpenApiStringReader();
             var diagnostic = new OpenApiDiagnostic();
 
             // Act
-            var openApiAny = reader.ReadFragment<OpenApiPathItem>(input, OpenApiSpecVersion.OpenApi3_0, out diagnostic);
+            var openApiAny = OpenApiModelFactory.Parse<OpenApiPathItem>(input, OpenApiSpecVersion.OpenApi3_0, out diagnostic, "yaml");
 
             // Assert
             diagnostic.Should().BeEquivalentTo(new OpenApiDiagnostic());
@@ -252,7 +155,8 @@ get:
                 var diagnostic = new OpenApiDiagnostic();
                 var context = new ParsingContext(diagnostic);
 
-                var node = new MapNode(context, (YamlMappingNode)yamlNode);
+                var asJsonNode = yamlNode.ToJsonNode();
+                var node = new MapNode(context, asJsonNode);
 
                 // Act
                 var schema = OpenApiV3Deserializer.LoadSchema(node);
@@ -261,398 +165,231 @@ get:
                 diagnostic.Should().BeEquivalentTo(new OpenApiDiagnostic());
 
                 schema.Should().BeEquivalentTo(
-                    new OpenApiSchema
+                new OpenApiSchema
+                {
+                    Type = JsonSchemaType.Object,
+                    AdditionalProperties = new()
                     {
-                        Type = "object",
-                        AdditionalProperties = new OpenApiSchema
-                        {
-                            Type = "string"
-                        }
-                    });
+                        Type = JsonSchemaType.String
+                    }
+                });
             }
         }
 
         [Fact]
         public void ParseBasicSchemaWithExampleShouldSucceed()
         {
-            using (var stream = Resources.GetStream(Path.Combine(SampleFolderPath, "basicSchemaWithExample.yaml")))
+            using var stream = Resources.GetStream(Path.Combine(SampleFolderPath, "basicSchemaWithExample.yaml"));
+            var yamlStream = new YamlStream();
+            yamlStream.Load(new StreamReader(stream));
+            var yamlNode = yamlStream.Documents.First().RootNode;
+
+            var diagnostic = new OpenApiDiagnostic();
+            var context = new ParsingContext(diagnostic);
+
+            var asJsonNode = yamlNode.ToJsonNode();
+            var node = new MapNode(context, asJsonNode);
+
+            // Act
+            var schema = OpenApiV3Deserializer.LoadSchema(node);
+
+            // Assert
+            diagnostic.Should().BeEquivalentTo(new OpenApiDiagnostic());
+
+            schema.Should().BeEquivalentTo(
+            new OpenApiSchema
             {
-                var yamlStream = new YamlStream();
-                yamlStream.Load(new StreamReader(stream));
-                var yamlNode = yamlStream.Documents.First().RootNode;
-
-                var diagnostic = new OpenApiDiagnostic();
-                var context = new ParsingContext(diagnostic);
-
-                var node = new MapNode(context, (YamlMappingNode)yamlNode);
-
-                // Act
-                var schema = OpenApiV3Deserializer.LoadSchema(node);
-
-                // Assert
-                diagnostic.Should().BeEquivalentTo(new OpenApiDiagnostic());
-
-                schema.Should().BeEquivalentTo(
-                    new OpenApiSchema
-                    {
-                        Type = "object",
-                        Properties =
+                Type = JsonSchemaType.Object,
+                Properties =
+                {
+                        ["id"] = new()
                         {
-                            ["id"] = new OpenApiSchema
-                            {
-                                Type = "integer",
-                                Format = "int64"
-                            },
-                            ["name"] = new OpenApiSchema
-                            {
-                                Type = "string"
-                            }
+                            Type = JsonSchemaType.Integer,
+                            Format = "int64"
                         },
-                        Required =
+                        ["name"] = new()
                         {
-                            "name"
-                        },
-                        Example = new OpenApiObject
-                        {
-                            ["name"] = new OpenApiString("Puma"),
-                            ["id"] = new OpenApiLong(1)
+                            Type = JsonSchemaType.String
                         }
-                    });
-            }
+                },
+                Required =
+                {
+                        "name"
+                },
+                Example = new JsonObject
+                {
+                    ["name"] = new OpenApiAny("Puma").Node,
+                    ["id"] = new OpenApiAny(1).Node
+                }
+            }, options => options
+            .IgnoringCyclicReferences()
+            .Excluding((IMemberInfo memberInfo) =>
+                memberInfo.Path.EndsWith("Parent"))
+            .Excluding((IMemberInfo memberInfo) =>
+                memberInfo.Path.EndsWith("Root")));
         }
 
         [Fact]
         public void ParseBasicSchemaWithReferenceShouldSucceed()
         {
-            using (var stream = Resources.GetStream(Path.Combine(SampleFolderPath, "basicSchemaWithReference.yaml")))
+            // Act
+            var result = OpenApiDocument.Load(Path.Combine(SampleFolderPath, "basicSchemaWithReference.yaml"));
+
+            // Assert
+            var components = result.Document.Components;
+
+            result.Diagnostic.Should().BeEquivalentTo(
+                new OpenApiDiagnostic()
+                {
+                    SpecificationVersion = OpenApiSpecVersion.OpenApi3_0
+                });
+
+            var expectedComponents = new OpenApiComponents
             {
-                // Act
-                var openApiDoc = new OpenApiStreamReader().Read(stream, out var diagnostic);
-
-                // Assert
-                var components = openApiDoc.Components;
-
-                diagnostic.Should().BeEquivalentTo(
-                    new OpenApiDiagnostic() { SpecificationVersion = OpenApiSpecVersion.OpenApi3_0 });
-
-                components.Should().BeEquivalentTo(
-                    new OpenApiComponents
+                Schemas =
+                {
+                    ["ErrorModel"] = new()
                     {
-                        Schemas =
+                        Type = JsonSchemaType.Object,
+                        Properties =
                         {
-                            ["ErrorModel"] = new OpenApiSchema
+                            ["code"] = new()
                             {
-                                Type = "object",
+                                Type = JsonSchemaType.Integer,
+                                Minimum = 100,
+                                Maximum = 600
+                            },
+                            ["message"] = new()
+                            {
+                                Type = JsonSchemaType.String
+                            }
+                        },
+                        Required =
+                        {
+                            "message",
+                            "code"
+                        }
+                    },
+                    ["ExtendedErrorModel"] = new()
+                    {
+                        AllOf =
+                        {
+                            new OpenApiSchemaReference("ErrorModel", result.Document),
+                            new OpenApiSchema
+                            {
+                                Type = JsonSchemaType.Object,
+                                Required = {"rootCause"},
                                 Properties =
                                 {
-                                    ["code"] = new OpenApiSchema
+                                    ["rootCause"] = new()
                                     {
-                                        Type = "integer",
-                                        Minimum = 100,
-                                        Maximum = 600
-                                    },
-                                    ["message"] = new OpenApiSchema
-                                    {
-                                        Type = "string"
-                                    }
-                                },
-                                Reference = new OpenApiReference
-                                {
-                                    Type = ReferenceType.Schema,
-                                    Id = "ErrorModel",
-                                    HostDocument = openApiDoc
-                                },
-                                Required =
-                                {
-                                    "message",
-                                    "code"
-                                }
-                            },
-                            ["ExtendedErrorModel"] = new OpenApiSchema
-                            {
-                                Reference = new OpenApiReference
-                                {
-                                    Type = ReferenceType.Schema,
-                                    Id = "ExtendedErrorModel",
-                                    HostDocument = openApiDoc
-                                },
-                                AllOf =
-                                {
-                                    new OpenApiSchema
-                                    {
-                                        Reference = new OpenApiReference
-                                        {
-                                            Type = ReferenceType.Schema,
-                                            Id = "ErrorModel",
-                                            HostDocument = openApiDoc
-                                        },
-                                        // Schema should be dereferenced in our model, so all the properties
-                                        // from the ErrorModel above should be propagated here.
-                                        Type = "object",
-                                        Properties =
-                                        {
-                                            ["code"] = new OpenApiSchema
-                                            {
-                                                Type = "integer",
-                                                Minimum = 100,
-                                                Maximum = 600
-                                            },
-                                            ["message"] = new OpenApiSchema
-                                            {
-                                                Type = "string"
-                                            }
-                                        },
-                                        Required =
-                                        {
-                                            "message",
-                                            "code"
-                                        }
-                                    },
-                                    new OpenApiSchema
-                                    {
-                                        Type = "object",
-                                        Required = {"rootCause"},
-                                        Properties =
-                                        {
-                                            ["rootCause"] = new OpenApiSchema
-                                            {
-                                                Type = "string"
-                                            }
-                                        }
+                                        Type = JsonSchemaType.String
                                     }
                                 }
                             }
                         }
-                    }, options => options.Excluding(m => m.Name == "HostDocument"));
-            }
+                    }
+                }
+            };
+
+            components.Should().BeEquivalentTo(expectedComponents);
         }
 
         [Fact]
         public void ParseAdvancedSchemaWithReferenceShouldSucceed()
         {
-            using (var stream = Resources.GetStream(Path.Combine(SampleFolderPath, "advancedSchemaWithReference.yaml")))
+            // Act
+            var result = OpenApiDocument.Load(Path.Combine(SampleFolderPath, "advancedSchemaWithReference.yaml"));
+
+            var expectedComponents = new OpenApiComponents
             {
-                // Act
-                var openApiDoc = new OpenApiStreamReader().Read(stream, out var diagnostic);
-
-                // Assert
-                var components = openApiDoc.Components;
-
-                diagnostic.Should().BeEquivalentTo(
-                    new OpenApiDiagnostic() { SpecificationVersion = OpenApiSpecVersion.OpenApi3_0 });
-
-                components.Should().BeEquivalentTo(
-                    new OpenApiComponents
+                Schemas =
+                {
+                    ["Pet"] = new()
                     {
-                        Schemas =
+                        Type = JsonSchemaType.Object,
+                        Discriminator = new()
                         {
-                            ["Pet"] = new OpenApiSchema
+                            PropertyName = "petType"
+                        },
+                        Properties =
+                        {
+                            ["name"] = new()
                             {
-                                Type = "object",
-                                Discriminator = new OpenApiDiscriminator
-                                {
-                                    PropertyName = "petType"
-                                },
+                                Type = JsonSchemaType.String
+                            },
+                            ["petType"] = new()
+                            {
+                                Type = JsonSchemaType.String
+                            }
+                        },
+                        Required =
+                        {
+                            "name",
+                            "petType"
+                        }
+                    },
+                    ["Cat"] = new()
+                    {
+                        Description = "A representation of a cat",
+                        AllOf =
+                        {
+                            new OpenApiSchemaReference("Pet", result.Document),
+                            new OpenApiSchema
+                            {
+                                Type = JsonSchemaType.Object,
+                                Required = {"huntingSkill"},
                                 Properties =
                                 {
-                                    ["name"] = new OpenApiSchema
+                                    ["huntingSkill"] = new()
                                     {
-                                        Type = "string"
-                                    },
-                                    ["petType"] = new OpenApiSchema
-                                    {
-                                        Type = "string"
-                                    }
-                                },
-                                Required =
-                                {
-                                    "name",
-                                    "petType"
-                                },
-                                Reference = new OpenApiReference()
-                                {
-                                    Id= "Pet",
-                                    Type = ReferenceType.Schema,
-                                    HostDocument = openApiDoc
-                                }
-                            },
-                            ["Cat"] = new OpenApiSchema
-                            {
-                                Description = "A representation of a cat",
-                                AllOf =
-                                {
-                                    new OpenApiSchema
-                                    {
-                                        Reference = new OpenApiReference
+                                        Type = JsonSchemaType.String,
+                                        Description = "The measured skill for hunting",
+                                        Enum =
                                         {
-                                            Type = ReferenceType.Schema,
-                                            Id = "Pet",
-                                            HostDocument = openApiDoc
-                                        },
-                                        // Schema should be dereferenced in our model, so all the properties
-                                        // from the Pet above should be propagated here.
-                                        Type = "object",
-                                        Discriminator = new OpenApiDiscriminator
-                                        {
-                                            PropertyName = "petType"
-                                        },
-                                        Properties =
-                                        {
-                                            ["name"] = new OpenApiSchema
-                                            {
-                                                Type = "string"
-                                            },
-                                            ["petType"] = new OpenApiSchema
-                                            {
-                                                Type = "string"
-                                            }
-                                        },
-                                        Required =
-                                        {
-                                            "name",
-                                            "petType"
-                                        }
-                                    },
-                                    new OpenApiSchema
-                                    {
-                                        Type = "object",
-                                        Required = {"huntingSkill"},
-                                        Properties =
-                                        {
-                                            ["huntingSkill"] = new OpenApiSchema
-                                            {
-                                                Type = "string",
-                                                Description = "The measured skill for hunting",
-                                                Enum =
-                                                {
-                                                    new OpenApiString("clueless"),
-                                                    new OpenApiString("lazy"),
-                                                    new OpenApiString("adventurous"),
-                                                    new OpenApiString("aggressive")
-                                                }
-                                            }
+                                            "clueless",
+                                            "lazy",
+                                            "adventurous",
+                                            "aggressive"
                                         }
                                     }
-                                },
-                                Reference = new OpenApiReference()
-                                {
-                                    Id= "Cat",
-                                    Type = ReferenceType.Schema,
-                                    HostDocument = openApiDoc
-                                }
-                            },
-                            ["Dog"] = new OpenApiSchema
-                            {
-                                Description = "A representation of a dog",
-                                AllOf =
-                                {
-                                    new OpenApiSchema
-                                    {
-                                        Reference = new OpenApiReference
-                                        {
-                                            Type = ReferenceType.Schema,
-                                            Id = "Pet",
-                                            HostDocument = openApiDoc
-                                        },
-                                        // Schema should be dereferenced in our model, so all the properties
-                                        // from the Pet above should be propagated here.
-                                        Type = "object",
-                                        Discriminator = new OpenApiDiscriminator
-                                        {
-                                            PropertyName = "petType"
-                                        },
-                                        Properties =
-                                        {
-                                            ["name"] = new OpenApiSchema
-                                            {
-                                                Type = "string"
-                                            },
-                                            ["petType"] = new OpenApiSchema
-                                            {
-                                                Type = "string"
-                                            }
-                                        },
-                                        Required =
-                                        {
-                                            "name",
-                                            "petType"
-                                        }
-                                    },
-                                    new OpenApiSchema
-                                    {
-                                        Type = "object",
-                                        Required = {"packSize"},
-                                        Properties =
-                                        {
-                                            ["packSize"] = new OpenApiSchema
-                                            {
-                                                Type = "integer",
-                                                Format = "int32",
-                                                Description = "the size of the pack the dog is from",
-                                                Default = new OpenApiInteger(0),
-                                                Minimum = 0
-                                            }
-                                        }
-                                    }
-                                },
-                                Reference = new OpenApiReference()
-                                {
-                                    Id= "Dog",
-                                    Type = ReferenceType.Schema,
-                                    HostDocument = openApiDoc
                                 }
                             }
                         }
-                    }, options => options.Excluding(m => m.Name == "HostDocument"));
-            }
-        }
-
-
-        [Fact]
-        public void ParseSelfReferencingSchemaShouldNotStackOverflow()
-        {
-            using (var stream = Resources.GetStream(Path.Combine(SampleFolderPath, "selfReferencingSchema.yaml")))
-            {
-                // Act
-                var openApiDoc = new OpenApiStreamReader().Read(stream, out var diagnostic);
-
-                // Assert
-                var components = openApiDoc.Components;
-
-                diagnostic.Should().BeEquivalentTo(
-                    new OpenApiDiagnostic() { SpecificationVersion = OpenApiSpecVersion.OpenApi3_0 });
-
-                var schemaExtension = new OpenApiSchema()
-                {
-                    AllOf = { new OpenApiSchema()
-                    {
-                        Title = "schemaExtension",
-                        Type = "object",
-                        Properties = {
-                                        ["description"] = new OpenApiSchema() { Type = "string", Nullable = true},
-                                        ["targetTypes"] = new OpenApiSchema() {
-                                            Type = "array",
-                                            Items = new OpenApiSchema() {
-                                                Type = "string"
-                                            }
-                                        },
-                                        ["status"] = new OpenApiSchema() { Type = "string"},
-                                        ["owner"] = new OpenApiSchema() { Type = "string"},
-                                        ["child"] = null
-                                    }
-                        }
                     },
-                    Reference = new OpenApiReference()
+                    ["Dog"] = new()
                     {
-                        Type = ReferenceType.Schema,
-                        Id = "microsoft.graph.schemaExtension"
+                        Description = "A representation of a dog",
+                        AllOf =
+                        {
+                            new OpenApiSchemaReference("Pet", result.Document),
+                            new OpenApiSchema
+                            {
+                                Type = JsonSchemaType.Object,
+                                Required = {"packSize"},
+                                Properties =
+                                {
+                                    ["packSize"] = new()
+                                    {
+                                        Type = JsonSchemaType.Integer,
+                                        Format = "int32",
+                                        Description = "the size of the pack the dog is from",
+                                        Default = 0,
+                                        Minimum = 0
+                                    }
+                                }
+                            }
+                        }
                     }
-                };
+                }
+            };
 
-                schemaExtension.AllOf[0].Properties["child"] = schemaExtension;
+            // We serialize so that we can get rid of the schema BaseUri properties which show up as diffs
+            var actual = result.Document.Components.SerializeAsYaml(OpenApiSpecVersion.OpenApi3_0);
+            var expected = expectedComponents.SerializeAsYaml(OpenApiSpecVersion.OpenApi3_0);
 
-                components.Schemas["microsoft.graph.schemaExtension"].Should().BeEquivalentTo(components.Schemas["microsoft.graph.schemaExtension"].AllOf[0].Properties["child"]);
-            }
+            // Assert
+            actual.Should().Be(expected);
         }
     }
 }

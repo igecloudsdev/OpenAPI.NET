@@ -1,9 +1,10 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
 using FluentAssertions;
 using Microsoft.OpenApi.Models;
-using Microsoft.OpenApi.Readers.V3;
+using Microsoft.OpenApi.Reader;
+using Microsoft.OpenApi.Reader.V3;
 using Xunit;
 
 namespace Microsoft.OpenApi.Readers.Tests
@@ -14,10 +15,8 @@ namespace Microsoft.OpenApi.Readers.Tests
 
         public ConvertToOpenApiReferenceV3Tests()
         {
-            Diagnostic = new OpenApiDiagnostic();
+            Diagnostic = new();
         }
-
-
 
         [Fact]
         public void ParseExternalReference()

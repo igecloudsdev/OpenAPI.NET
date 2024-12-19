@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT license.
 
 using System;
@@ -61,9 +61,13 @@ namespace Microsoft.OpenApi.Services
         public static OpenApiDocument CreateFilteredDocument(OpenApiDocument source, Func<string, OperationType?, OpenApiOperation, bool> predicate)
         {
             // Fetch and copy title, graphVersion and server info from OpenApiDoc
+            var components = source.Components is null 
+                ? null 
+                : new OpenApiComponents() { SecuritySchemes = source.Components.SecuritySchemes };
+
             var subset = new OpenApiDocument
             {
-                Info = new OpenApiInfo
+                Info = new()
                 {
                     Title = source.Info.Title + " - Subset",
                     Description = source.Info.Description,
@@ -74,7 +78,7 @@ namespace Microsoft.OpenApi.Services
                     Extensions = source.Info.Extensions
                 },
 
-                Components = new OpenApiComponents { SecuritySchemes = source.Components.SecuritySchemes },
+                Components = components,
                 SecurityRequirements = source.SecurityRequirements,
                 Servers = source.Servers
             };
@@ -87,15 +91,15 @@ namespace Microsoft.OpenApi.Services
 
                 if (subset.Paths == null)
                 {
-                    subset.Paths = new OpenApiPaths();
-                    pathItem = new OpenApiPathItem();
+                    subset.Paths = new();
+                    pathItem = new();
                     subset.Paths.Add(pathKey, pathItem);
                 }
                 else
                 {
                     if (!subset.Paths.TryGetValue(pathKey, out pathItem))
                     {
-                        pathItem = new OpenApiPathItem();
+                        pathItem = new();
                         subset.Paths.Add(pathKey, pathItem);
                     }
                 }
@@ -108,7 +112,10 @@ namespace Microsoft.OpenApi.Services
                     {
                         foreach (var parameter in result.Parameters)
                         {
-                            pathItem.Parameters.Add(parameter);
+                            if (!pathItem.Parameters.Contains(parameter))
+                            {
+                                pathItem.Parameters.Add(parameter);
+                            }                          
                         }
                     }
                 }
@@ -274,6 +281,42 @@ namespace Microsoft.OpenApi.Services
                 moreStuff = true;
                 target.RequestBodies.Add(item);
             }
+
+            foreach (var item in newComponents.Headers
+                                        .Where(item => !target.Headers.ContainsKey(item.Key)))
+            {
+                moreStuff = true;
+                target.Headers.Add(item);
+            }
+
+            foreach (var item in newComponents.Links
+                                        .Where(item => !target.Links.ContainsKey(item.Key)))
+            {
+                moreStuff = true;
+                target.Links.Add(item);
+            }
+
+            foreach (var item in newComponents.Callbacks
+                                        .Where(item => !target.Callbacks.ContainsKey(item.Key)))
+            {
+                moreStuff = true;
+                target.Callbacks.Add(item);
+            }
+
+            foreach (var item in newComponents.Examples
+                                        .Where(item => !target.Examples.ContainsKey(item.Key)))
+            {
+                moreStuff = true;
+                target.Examples.Add(item);
+            }
+
+            foreach (var item in newComponents.SecuritySchemes
+                                        .Where(item => !target.SecuritySchemes.ContainsKey(item.Key)))
+            {
+                moreStuff = true;
+                target.SecuritySchemes.Add(item);
+            }
+
             return moreStuff;
         }
 
@@ -284,7 +327,7 @@ namespace Microsoft.OpenApi.Services
                                     .FirstOrDefault(c => url.Contains(c));
 
             return baseUrl == null ?
-                    new Uri(new Uri(SRResource.DefaultBaseUri), url).GetComponents(UriComponents.Path | UriComponents.KeepDelimiter, UriFormat.Unescaped)
+                    new Uri(new(SRResource.DefaultBaseUri), url).GetComponents(UriComponents.Path | UriComponents.KeepDelimiter, UriFormat.Unescaped)
                     : url.Split(new[] { baseUrl }, StringSplitOptions.None)[1];
         }
 
@@ -304,12 +347,12 @@ namespace Microsoft.OpenApi.Services
         {
             if (operationIds == "*")
             {
-                return (url, operationType, operation) => true;  // All operations
+                return (_, _, _) => true;  // All operations
             }
             else
             {
                 var operationIdsArray = operationIds.Split(',');
-                return (url, operationType, operation) => operationIdsArray.Contains(operation.OperationId);
+                return (_, _, operation) => operationIdsArray.Contains(operation.OperationId);
             }
         }
 
@@ -319,11 +362,11 @@ namespace Microsoft.OpenApi.Services
             if (tagsArray.Length == 1)
             {
                 var regex = new Regex(tagsArray[0]);
-                return (url, operationType, operation) => operation.Tags.Any(tag => regex.IsMatch(tag.Name));
+                return (_, _, operation) => operation.Tags.Any(tag => regex.IsMatch(tag.Name));
             }
             else
             {
-                return (url, operationType, operation) => operation.Tags.Any(tag => tagsArray.Contains(tag.Name));
+                return (_, _, operation) => operation.Tags.Any(tag => tagsArray.Contains(tag.Name));
             }
         }
 
@@ -357,7 +400,7 @@ namespace Microsoft.OpenApi.Services
             }
 
             // predicate for matching url and operationTypes
-            return (path, operationType, operation) => operationTypes.Contains(operationType + path);
+            return (path, operationType, _) => operationTypes.Contains(operationType + path);
         }
 
         private static List<string> GetOperationTypes(IDictionary<OperationType, OpenApiOperation> openApiOperations, List<string> url, string path)

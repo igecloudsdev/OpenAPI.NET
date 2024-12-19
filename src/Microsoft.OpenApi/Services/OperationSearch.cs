@@ -25,7 +25,7 @@ namespace Microsoft.OpenApi.Services
         /// The OperationSearch constructor.
         /// </summary>
         /// <param name="predicate">A predicate function.</param>
-        public OperationSearch(Func<string, OperationType?,OpenApiOperation, bool> predicate)
+        public OperationSearch(Func<string, OperationType?, OpenApiOperation, bool> predicate)
         {
             _predicate = predicate ?? throw new ArgumentNullException(nameof(predicate));
         }
@@ -43,7 +43,7 @@ namespace Microsoft.OpenApi.Services
 
                 if (_predicate(CurrentKeys.Path, operationType, operation))
                 {
-                    _searchResults.Add(new SearchResult()
+                    _searchResults.Add(new()
                     {
                         Operation = operation,
                         Parameters = pathItem.Parameters,
@@ -74,7 +74,7 @@ namespace Microsoft.OpenApi.Services
 
         private static CurrentKeys CopyCurrentKeys(CurrentKeys currentKeys, OperationType operationType)
         {
-            return new CurrentKeys
+            return new()
             {
                 Path = currentKeys.Path,
                 Operation = operationType,

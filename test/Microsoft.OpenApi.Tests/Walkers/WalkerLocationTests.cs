@@ -1,11 +1,12 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
 using System.Collections.Generic;
 using System.Linq;
 using FluentAssertions;
 using Microsoft.OpenApi.Interfaces;
 using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi.Models.References;
 using Microsoft.OpenApi.Services;
 using Xunit;
 
@@ -13,7 +14,6 @@ namespace Microsoft.OpenApi.Tests.Walkers
 {
     public class WalkerLocationTests
     {
-
         [Fact]
         public void LocateTopLevelObjects()
         {
@@ -24,7 +24,9 @@ namespace Microsoft.OpenApi.Tests.Walkers
             walker.Walk(doc);
 
             locator.Locations.Should().BeEquivalentTo(new List<string> {
+                "#/info",
                 "#/servers",
+                "#/paths",
                 "#/tags"
             });
         }
@@ -32,16 +34,16 @@ namespace Microsoft.OpenApi.Tests.Walkers
         [Fact]
         public void LocateTopLevelArrayItems()
         {
-            var doc = new OpenApiDocument()
+            var doc = new OpenApiDocument
             {
-                Servers = new List<OpenApiServer>() {
-                    new OpenApiServer(),
-                    new OpenApiServer()
-                },
-                Paths = new OpenApiPaths(),
-                Tags = new List<OpenApiTag>()
+                Servers = new List<OpenApiServer>
                 {
-                    new OpenApiTag()
+                    new(),
+                    new()
+                },
+                Tags = new List<OpenApiTag>
+                {
+                    new()
                 }
             };
 
@@ -50,6 +52,7 @@ namespace Microsoft.OpenApi.Tests.Walkers
             walker.Walk(doc);
 
             locator.Locations.Should().BeEquivalentTo(new List<string> {
+                "#/info",
                 "#/servers",
                 "#/servers/0",
                 "#/servers/1",
@@ -62,27 +65,24 @@ namespace Microsoft.OpenApi.Tests.Walkers
         [Fact]
         public void LocatePathOperationContentSchema()
         {
-            var doc = new OpenApiDocument
+            var doc = new OpenApiDocument();
+            doc.Paths.Add("/test", new()
             {
-                Paths = new OpenApiPaths()
-            };
-            doc.Paths.Add("/test", new OpenApiPathItem()
-            {
-                Operations = new Dictionary<OperationType, OpenApiOperation>()
+                Operations = new Dictionary<OperationType, OpenApiOperation>
                 {
-                    [OperationType.Get] = new OpenApiOperation()
+                    [OperationType.Get] = new()
                     {
-                        Responses = new OpenApiResponses()
+                        Responses = new()
                         {
-                            ["200"] = new OpenApiResponse()
+                            ["200"] = new()
                             {
                                 Content = new Dictionary<string, OpenApiMediaType>
                                 {
-                                    ["application/json"] = new OpenApiMediaType
+                                    ["application/json"] = new()
                                     {
                                         Schema = new OpenApiSchema
                                         {
-                                            Type = "string"
+                                            Type = JsonSchemaType.String
                                         }
                                     }
                                 }
@@ -97,6 +97,7 @@ namespace Microsoft.OpenApi.Tests.Walkers
             walker.Walk(doc);
 
             locator.Locations.Should().BeEquivalentTo(new List<string> {
+                "#/info",
                 "#/servers",
                 "#/paths",
                 "#/paths/~1test",
@@ -117,21 +118,20 @@ namespace Microsoft.OpenApi.Tests.Walkers
         [Fact]
         public void WalkDOMWithCycles()
         {
-            var loopySchema = new OpenApiSchema()
+            var loopySchema = new OpenApiSchema
             {
-                Type = "object",
-                Properties = new Dictionary<string, OpenApiSchema>()
+                Type = JsonSchemaType.Object,
+                Properties = new Dictionary<string, OpenApiSchema>
                 {
-                    ["name"] = new OpenApiSchema() { Type = "string" }
+                    ["name"] = new() { Type = JsonSchemaType.String }
                 }
             };
 
             loopySchema.Properties.Add("parent", loopySchema);
 
-            var doc = new OpenApiDocument()
+            var doc = new OpenApiDocument
             {
-                Paths = new OpenApiPaths(),
-                Components = new OpenApiComponents()
+                Components = new()
                 {
                     Schemas = new Dictionary<string, OpenApiSchema>
                     {
@@ -145,6 +145,7 @@ namespace Microsoft.OpenApi.Tests.Walkers
             walker.Walk(doc);
 
             locator.Locations.Should().BeEquivalentTo(new List<string> {
+                "#/info",
                 "#/servers",
                 "#/paths",
                 "#/components",
@@ -160,32 +161,22 @@ namespace Microsoft.OpenApi.Tests.Walkers
         [Fact]
         public void LocateReferences()
         {
-
-            var baseSchema = new OpenApiSchema()
-            {
-                Reference = new OpenApiReference()
-                {
-                    Id = "base",
-                    Type = ReferenceType.Schema
-                },
-                UnresolvedReference = false
-            };
+            var baseSchema = new OpenApiSchemaReference("base", null);
 
             var derivedSchema = new OpenApiSchema
             {
-                AnyOf = new List<OpenApiSchema>() { baseSchema },
-                Reference = new OpenApiReference()
+                AnyOf = new List<OpenApiSchema> { baseSchema },
+                Reference = new()
                 {
                     Id = "derived",
                     Type = ReferenceType.Schema
                 },
                 UnresolvedReference = false
             };
-
             var testHeader = new OpenApiHeader()
             {
                 Schema = derivedSchema,
-                Reference = new OpenApiReference()
+                Reference = new()
                 {
                     Id = "test-header",
                     Type = ReferenceType.Header
@@ -195,26 +186,26 @@ namespace Microsoft.OpenApi.Tests.Walkers
 
             var doc = new OpenApiDocument
             {
-                Paths = new OpenApiPaths()
+                Paths = new()
                 {
-                    ["/"] = new OpenApiPathItem()
+                    ["/"] = new()
                     {
-                        Operations = new Dictionary<OperationType, OpenApiOperation>()
+                        Operations = new Dictionary<OperationType, OpenApiOperation>
                         {
-                            [OperationType.Get] = new OpenApiOperation()
+                            [OperationType.Get] = new()
                             {
-                                Responses = new OpenApiResponses()
+                                Responses = new()
                                 {
-                                    ["200"] = new OpenApiResponse()
+                                    ["200"] = new()
                                     {
-                                        Content = new Dictionary<string, OpenApiMediaType>()
+                                        Content = new Dictionary<string, OpenApiMediaType>
                                         {
-                                            ["application/json"] = new OpenApiMediaType()
+                                            ["application/json"] = new()
                                             {
                                                 Schema = derivedSchema
                                             }
                                         },
-                                        Headers = new Dictionary<string, OpenApiHeader>()
+                                        Headers = new Dictionary<string, OpenApiHeader>
                                         {
                                             ["test-header"] = testHeader
                                         }
@@ -224,16 +215,20 @@ namespace Microsoft.OpenApi.Tests.Walkers
                         }
                     }
                 },
-                Components = new OpenApiComponents()
+                Components = new()
                 {
-                    Schemas = new Dictionary<string, OpenApiSchema>()
+                    Schemas = new Dictionary<string, OpenApiSchema>
                     {
                         ["derived"] = derivedSchema,
                         ["base"] = baseSchema,
                     },
-                    Headers = new Dictionary<string, OpenApiHeader>()
+                    Headers = new Dictionary<string, OpenApiHeader>
                     {
                         ["test-header"] = testHeader
+                    },
+                    SecuritySchemes = new Dictionary<string, OpenApiSecurityScheme>
+                    {
+                        ["test-secScheme"] = new OpenApiSecuritySchemeReference("reference-to-scheme", null, null)
                     }
                 }
             };
@@ -244,8 +239,9 @@ namespace Microsoft.OpenApi.Tests.Walkers
 
             locator.Locations.Where(l => l.StartsWith("referenceAt:")).Should().BeEquivalentTo(new List<string> {
                 "referenceAt: #/paths/~1/get/responses/200/content/application~1json/schema",
-                "referenceAt: #/paths/~1/get/responses/200/headers/test-header",
+                "referenceAt: #/paths/~1/get/responses/200/headers/test-header/schema",
                 "referenceAt: #/components/schemas/derived/anyOf/0",
+                "referenceAt: #/components/securitySchemes/test-secScheme",
                 "referenceAt: #/components/headers/test-header/schema"
             });
         }
@@ -253,8 +249,8 @@ namespace Microsoft.OpenApi.Tests.Walkers
 
     internal class LocatorVisitor : OpenApiVisitorBase
     {
-        public List<string> Locations = new List<string>();
-        public List<string> Keys = new List<string>();
+        public List<string> Locations = new();
+        public List<string> Keys = new();
 
         public override void Visit(OpenApiInfo info)
         {

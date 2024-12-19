@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
+using System;
 using System.Collections.Generic;
 using Microsoft.OpenApi.Interfaces;
 using Microsoft.OpenApi.Writers;
@@ -29,14 +30,27 @@ namespace Microsoft.OpenApi.Models
         }
 
         /// <summary>
+        /// Serialize <see cref="OpenApiSecurityRequirement"/> to Open Api v3.1
+        /// </summary>
+        public void SerializeAsV31(IOpenApiWriter writer)
+        {
+            SerializeInternal(writer, (writer, element) => element.SerializeAsV31(writer));
+        }
+
+        /// <summary>
         /// Serialize <see cref="OpenApiSecurityRequirement"/> to Open Api v3.0
         /// </summary>
         public void SerializeAsV3(IOpenApiWriter writer)
         {
-            if (writer == null)
-            {
-                throw Error.ArgumentNull(nameof(writer));
-            }
+            SerializeInternal(writer, (writer, element) => element.SerializeAsV3(writer));
+        }
+
+        /// <summary>
+        /// Serialize <see cref="OpenApiSecurityRequirement"/> 
+        /// </summary>
+        private void SerializeInternal(IOpenApiWriter writer, Action<IOpenApiWriter, IOpenApiSerializable> callback)
+        {
+            Utils.CheckArgumentNull(writer);;
 
             writer.WriteStartObject();
 
@@ -53,7 +67,7 @@ namespace Microsoft.OpenApi.Models
                     continue;
                 }
 
-                securityScheme.SerializeAsV3(writer);
+                writer.WritePropertyName(securityScheme.Reference.ReferenceV3);
 
                 writer.WriteStartArray();
 
@@ -73,10 +87,7 @@ namespace Microsoft.OpenApi.Models
         /// </summary>
         public void SerializeAsV2(IOpenApiWriter writer)
         {
-            if (writer == null)
-            {
-                throw Error.ArgumentNull(nameof(writer));
-            }
+            Utils.CheckArgumentNull(writer);;
 
             writer.WriteStartObject();
 

@@ -1,7 +1,6 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
-using System;
 using System.Collections.Generic;
 using FluentAssertions;
 using Microsoft.OpenApi.Any;
@@ -15,20 +14,20 @@ namespace Microsoft.OpenApi.Tests.Models
     [Collection("DefaultSettings")]
     public class OpenApiXmlTests
     {
-        public static OpenApiXml AdvancedXml = new OpenApiXml
+        public static OpenApiXml AdvancedXml = new()
         {
             Name = "animal",
-            Namespace = new Uri("http://swagger.io/schema/sample"),
+            Namespace = new("http://swagger.io/schema/sample"),
             Prefix = "sample",
             Wrapped = true,
             Attribute = true,
             Extensions = new Dictionary<string, IOpenApiExtension>
             {
-                {"x-xml-extension", new OpenApiInteger(7)}
+                {"x-xml-extension", new OpenApiAny(7)}
             }
         };
 
-        public static OpenApiXml BasicXml = new OpenApiXml();
+        public static OpenApiXml BasicXml = new();
 
         [Theory]
         [InlineData(OpenApiSpecVersion.OpenApi3_0, OpenApiFormat.Json)]
@@ -54,14 +53,16 @@ namespace Microsoft.OpenApi.Tests.Models
         {
             // Arrange
             var expected =
-                @"{
-  ""name"": ""animal"",
-  ""namespace"": ""http://swagger.io/schema/sample"",
-  ""prefix"": ""sample"",
-  ""attribute"": true,
-  ""wrapped"": true,
-  ""x-xml-extension"": 7
-}";
+                """
+                {
+                  "name": "animal",
+                  "namespace": "http://swagger.io/schema/sample",
+                  "prefix": "sample",
+                  "attribute": true,
+                  "wrapped": true,
+                  "x-xml-extension": 7
+                }
+                """;
 
             // Act
             var actual = AdvancedXml.SerializeAsJson(version);
@@ -79,12 +80,14 @@ namespace Microsoft.OpenApi.Tests.Models
         {
             // Arrange
             var expected =
-                @"name: animal
-namespace: http://swagger.io/schema/sample
-prefix: sample
-attribute: true
-wrapped: true
-x-xml-extension: 7";
+                """
+                name: animal
+                namespace: http://swagger.io/schema/sample
+                prefix: sample
+                attribute: true
+                wrapped: true
+                x-xml-extension: 7
+                """;
 
             // Act
             var actual = AdvancedXml.SerializeAsYaml(version);

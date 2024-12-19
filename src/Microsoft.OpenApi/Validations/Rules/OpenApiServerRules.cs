@@ -1,5 +1,5 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
 using System;
 using Microsoft.OpenApi.Models;
@@ -17,7 +17,7 @@ namespace Microsoft.OpenApi.Validations.Rules
         /// Validate the field is required.
         /// </summary>
         public static ValidationRule<OpenApiServer> ServerRequiredFields =>
-            new ValidationRule<OpenApiServer>(
+            new(nameof(ServerRequiredFields),
                 (context, server) =>
                 {
                     context.Enter("url");
@@ -26,9 +26,32 @@ namespace Microsoft.OpenApi.Validations.Rules
                         context.CreateError(nameof(ServerRequiredFields),
                             String.Format(SRResource.Validation_FieldIsRequired, "url", "server"));
                     }
+
+                    context.Exit();
+                    context.Enter("variables");
+                    foreach (var variable in server.Variables)
+                    {
+                        context.Enter(variable.Key);
+                        ValidateServerVariableRequiredFields(context, variable.Key, variable.Value);
+                        context.Exit();
+                    }
                     context.Exit();
                 });
 
         // add more rules
+
+        /// <summary>
+        /// Validate required fields in server variable
+        /// </summary>
+        private static void ValidateServerVariableRequiredFields(IValidationContext context, string key, OpenApiServerVariable item)
+        {
+            context.Enter("default");
+            if (string.IsNullOrEmpty(item.Default))
+            {
+                context.CreateError("ServerVariableMustHaveDefaultValue",
+                    String.Format(SRResource.Validation_FieldIsRequired, "default", key));
+            }
+            context.Exit();
+        }
     }
 }

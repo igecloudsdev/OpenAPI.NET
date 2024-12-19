@@ -1,64 +1,52 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
 using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi.Models.References;
 using Microsoft.OpenApi.Writers;
 using VerifyXunit;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Microsoft.OpenApi.Tests.Models
 {
     [Collection("DefaultSettings")]
-    [UsesVerify]
     public class OpenApiRequestBodyTests
     {
-        public static OpenApiRequestBody AdvancedRequestBody = new OpenApiRequestBody
+        public static OpenApiRequestBody AdvancedRequestBody = new()
         {
             Description = "description",
             Required = true,
             Content =
             {
-                ["application/json"] = new OpenApiMediaType
+                ["application/json"] = new()
                 {
-                    Schema = new OpenApiSchema
+                    Schema = new()
                     {
-                        Type = "string"
+                        Type = JsonSchemaType.String
                     }
                 }
             }
         };
 
-        public static OpenApiRequestBody ReferencedRequestBody = new OpenApiRequestBody
+        public static OpenApiRequestBodyReference OpenApiRequestBodyReference = new(ReferencedRequestBody, "example1");
+        public static OpenApiRequestBody ReferencedRequestBody = new()
         {
-            Reference = new OpenApiReference
-            {
-                Type = ReferenceType.RequestBody,
-                Id = "example1",
-            },
             Description = "description",
             Required = true,
             Content =
             {
-                ["application/json"] = new OpenApiMediaType
+                ["application/json"] = new()
                 {
-                    Schema = new OpenApiSchema
+                    Schema = new()
                     {
-                        Type = "string"
+                        Type = JsonSchemaType.String
                     }
                 }
             }
         };
-
-        private readonly ITestOutputHelper _output;
-
-        public OpenApiRequestBodyTests(ITestOutputHelper output)
-        {
-            _output = output;
-        }
 
         [Theory]
         [InlineData(true)]
@@ -67,7 +55,7 @@ namespace Microsoft.OpenApi.Tests.Models
         {
             // Arrange
             var outputStringWriter = new StringWriter(CultureInfo.InvariantCulture);
-            var writer = new OpenApiJsonWriter(outputStringWriter, new OpenApiJsonWriterSettings { Terse = produceTerseOutput });
+            var writer = new OpenApiJsonWriter(outputStringWriter, new() { Terse = produceTerseOutput });
 
             // Act
             AdvancedRequestBody.SerializeAsV3(writer);
@@ -84,10 +72,10 @@ namespace Microsoft.OpenApi.Tests.Models
         {
             // Arrange
             var outputStringWriter = new StringWriter(CultureInfo.InvariantCulture);
-            var writer = new OpenApiJsonWriter(outputStringWriter, new OpenApiJsonWriterSettings { Terse = produceTerseOutput });
+            var writer = new OpenApiJsonWriter(outputStringWriter, new() { Terse = produceTerseOutput });
 
             // Act
-            ReferencedRequestBody.SerializeAsV3(writer);
+            OpenApiRequestBodyReference.SerializeAsV3(writer);
             writer.Flush();
 
             // Assert
@@ -101,10 +89,10 @@ namespace Microsoft.OpenApi.Tests.Models
         {
             // Arrange
             var outputStringWriter = new StringWriter(CultureInfo.InvariantCulture);
-            var writer = new OpenApiJsonWriter(outputStringWriter, new OpenApiJsonWriterSettings { Terse = produceTerseOutput });
+            var writer = new OpenApiJsonWriter(outputStringWriter, new() { Terse = produceTerseOutput });
 
             // Act
-            ReferencedRequestBody.SerializeAsV3WithoutReference(writer);
+            ReferencedRequestBody.SerializeAsV3(writer);
             writer.Flush();
 
             // Assert

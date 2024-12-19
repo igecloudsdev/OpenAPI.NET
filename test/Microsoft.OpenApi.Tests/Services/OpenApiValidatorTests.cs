@@ -1,9 +1,12 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using FluentAssertions;
+using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Interfaces;
 using Microsoft.OpenApi.Models;
 using Microsoft.OpenApi.Properties;
@@ -12,45 +15,40 @@ using Microsoft.OpenApi.Validations;
 using Microsoft.OpenApi.Validations.Rules;
 using Microsoft.OpenApi.Writers;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Microsoft.OpenApi.Tests.Services
 {
     [Collection("DefaultSettings")]
     public class OpenApiValidatorTests
     {
-        private readonly ITestOutputHelper _output;
-
-        public OpenApiValidatorTests(ITestOutputHelper output)
-        {
-            _output = output;
-        }
-
         [Fact]
         public void ResponseMustHaveADescription()
         {
             var openApiDocument = new OpenApiDocument();
-            openApiDocument.Info = new OpenApiInfo()
+            openApiDocument.Info = new()
             {
                 Title = "foo",
                 Version = "1.2.2"
             };
-            openApiDocument.Paths = new OpenApiPaths();
-            openApiDocument.Paths.Add(
-                "/test",
-                new OpenApiPathItem
+            openApiDocument.Paths = new()
+            {
                 {
-                    Operations =
+                    "/test",
+                    new()
                     {
-                        [OperationType.Get] = new OpenApiOperation
+                        Operations =
+                    {
+                        [OperationType.Get] = new()
                         {
                             Responses =
                             {
-                                ["200"] = new OpenApiResponse()
+                                ["200"] = new()
                             }
                         }
                     }
-                });
+                    }
+                }
+            };
 
             var validator = new OpenApiValidator(ValidationRuleSet.GetDefaultRuleSet());
             var walker = new OpenApiWalker(validator);
@@ -69,22 +67,21 @@ namespace Microsoft.OpenApi.Tests.Services
         {
             var openApiDocument = new OpenApiDocument
             {
-                Info = new OpenApiInfo()
+                Info = new()
                 {
                     Title = "foo",
                     Version = "1.2.2"
                 },
                 Servers = new List<OpenApiServer> {
-                new OpenApiServer
+                new()
                 {
                     Url = "http://example.org"
                 },
-                new OpenApiServer
+                new()
                 {
-
                 },
             },
-                Paths = new OpenApiPaths()
+                Paths = new()
             };
 
             var validator = new OpenApiValidator(ValidationRuleSet.GetDefaultRuleSet());
@@ -99,39 +96,40 @@ namespace Microsoft.OpenApi.Tests.Services
         });
         }
 
-
         [Fact]
         public void ValidateCustomExtension()
         {
             var ruleset = ValidationRuleSet.GetDefaultRuleSet();
 
-            ruleset.Add(
-             new ValidationRule<FooExtension>(
+            ruleset.Add(typeof(OpenApiAny), 
+             new ValidationRule<OpenApiAny>("FooExtensionRule",
                  (context, item) =>
                  {
-                     if (item.Bar == "hey")
+                     if (item.Node["Bar"].ToString() == "hey")
                      {
-                         context.AddError(new OpenApiValidatorError("FooExtensionRule", context.PathString, "Don't say hey"));
+                         context.AddError(new("FooExtensionRule", context.PathString, "Don't say hey"));
                      }
                  }));
 
             var openApiDocument = new OpenApiDocument
             {
-                Info = new OpenApiInfo()
+                Info = new()
                 {
                     Title = "foo",
                     Version = "1.2.2"
                 },
-                Paths = new OpenApiPaths()
+                Paths = new()
             };
 
-            var fooExtension = new FooExtension()
+            var fooExtension = new FooExtension
             {
                 Bar = "hey",
                 Baz = "baz"
             };
 
-            openApiDocument.Info.Extensions.Add("x-foo", fooExtension);
+            var extensionNode = JsonSerializer.Serialize(fooExtension);
+            var jsonNode = JsonNode.Parse(extensionNode);
+            openApiDocument.Info.Extensions.Add("x-foo", new OpenApiAny(jsonNode));
 
             var validator = new OpenApiValidator(ruleset);
             var walker = new OpenApiWalker(validator);
@@ -144,6 +142,43 @@ namespace Microsoft.OpenApi.Tests.Services
                    });
         }
 
+        [Fact]
+        public void RemoveRuleByName_Invalid()
+        {
+            Assert.Throws<ArgumentNullException>(() => new ValidationRule<OpenApiAny>(null, (vc, oaa) => { }));
+            Assert.Throws<ArgumentNullException>(() => new ValidationRule<OpenApiAny>(string.Empty, (vc, oaa) => { }));
+        }
+
+        [Fact]
+        public void RemoveRuleByName()
+        {
+            var ruleset = ValidationRuleSet.GetDefaultRuleSet();
+            int expected = ruleset.Rules.Count - 1;
+            ruleset.Remove("KeyMustBeRegularExpression");
+
+            Assert.Equal(expected, ruleset.Rules.Count);
+            
+            ruleset.Remove("KeyMustBeRegularExpression");
+            ruleset.Remove("UnknownName");
+
+            Assert.Equal(expected, ruleset.Rules.Count);
+        }
+
+        [Fact]
+        public void RemoveRuleByType()
+        {
+            var ruleset = ValidationRuleSet.GetDefaultRuleSet();
+            int expected = ruleset.Rules.Count - 1;
+            
+            ruleset.Remove(typeof(OpenApiComponents));
+
+            Assert.Equal(expected, ruleset.Rules.Count);
+
+            ruleset.Remove(typeof(OpenApiComponents));
+            ruleset.Remove(typeof(int));
+
+            Assert.Equal(expected, ruleset.Rules.Count);
+        }
     }
 
     internal class FooExtension : IOpenApiExtension, IOpenApiElement

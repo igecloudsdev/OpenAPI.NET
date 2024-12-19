@@ -24,7 +24,7 @@ namespace Microsoft.OpenApi.Hidi.Formatters
         {
             // Add singularization exclusions.
             // Enhancement: Read exclusions from a user provided file.
-            Vocabularies.Default.AddSingular("(drive)s$", "$1"); // drives does not properly singularize to drive.               
+            Vocabularies.Default.AddSingular("(drive)s$", "$1"); // drives does not properly singularize to drive.
             Vocabularies.Default.AddSingular("(data)$", "$1"); // exclude the following from singularization.
             Vocabularies.Default.AddSingular("(delta)$", "$1");
             Vocabularies.Default.AddSingular("(quota)$", "$1");
@@ -52,7 +52,8 @@ namespace Microsoft.OpenApi.Hidi.Formatters
 
         public override void Visit(OpenApiPathItem pathItem)
         {
-            if (pathItem.Operations.TryGetValue(OperationType.Put, out var value))
+            if (pathItem.Operations.TryGetValue(OperationType.Put, out var value) &&
+                value.OperationId != null)
             {
                 var operationId = value.OperationId;
                 pathItem.Operations[OperationType.Put].OperationId = ResolvePutOperationId(operationId);
@@ -67,14 +68,14 @@ namespace Microsoft.OpenApi.Hidi.Formatters
                 throw new ArgumentException($"OperationId is required {PathString}", nameof(operation));
 
             var operationId = operation.OperationId;
-            var operationTypeExtension = operation.Extensions.GetExtension("x-ms-docs-operation-type");
+            var operationTypeExtension = operation.Extensions?.GetExtension("x-ms-docs-operation-type");
             if (operationTypeExtension.IsEquals("function"))
-                operation.Parameters = ResolveFunctionParameters(operation.Parameters);
+                operation.Parameters = ResolveFunctionParameters(operation.Parameters ?? new List<OpenApiParameter>());
 
             // Order matters. Resolve operationId.
             operationId = RemoveHashSuffix(operationId);
             if (operationTypeExtension.IsEquals("action") || operationTypeExtension.IsEquals("function"))
-                operationId = RemoveKeyTypeSegment(operationId, operation.Parameters);
+                operationId = RemoveKeyTypeSegment(operationId, operation.Parameters ?? new List<OpenApiParameter>());
             operationId = SingularizeAndDeduplicateOperationId(operationId.SplitByChar('.'));
             operationId = ResolveODataCastOperationId(operationId);
             operationId = ResolveByRefOperationId(operationId);
@@ -88,7 +89,7 @@ namespace Microsoft.OpenApi.Hidi.Formatters
         private static string ResolveVerbSegmentInOpertationId(string operationId)
         {
             var charPos = operationId.LastIndexOf('.', operationId.Length - 1);
-            if (operationId.Contains('_') || charPos < 0)
+            if (operationId.Contains('_', StringComparison.OrdinalIgnoreCase) || charPos < 0)
                 return operationId;
             var newOperationId = new StringBuilder(operationId);
             newOperationId[charPos] = '_';
@@ -99,7 +100,7 @@ namespace Microsoft.OpenApi.Hidi.Formatters
         private static string ResolvePutOperationId(string operationId)
         {
             return operationId.Contains(DefaultPutPrefix, StringComparison.OrdinalIgnoreCase) ?
-                operationId.Replace(DefaultPutPrefix, PowerShellPutPrefix) : operationId;
+                operationId.Replace(DefaultPutPrefix, PowerShellPutPrefix, StringComparison.Ordinal) : operationId;
         }
 
         private static string ResolveByRefOperationId(string operationId)
@@ -122,7 +123,7 @@ namespace Microsoft.OpenApi.Hidi.Formatters
             var lastSegmentIndex = segmentsCount - 1;
             var singularizedSegments = new List<string>();
 
-            for (int x = 0; x < segmentsCount; x++)
+            for (var x = 0; x < segmentsCount; x++)
             {
                 var segment = operationIdSegments[x].Singularize(inputIsKnownToBePlural: false);
 
@@ -133,7 +134,7 @@ namespace Microsoft.OpenApi.Hidi.Formatters
 
                 singularizedSegments.Add(segment);
             }
-            return string.Join(".", singularizedSegments);
+            return string.Join('.', singularizedSegments);
         }
 
         private static string RemoveHashSuffix(string operationId)
@@ -153,7 +154,7 @@ namespace Microsoft.OpenApi.Hidi.Formatters
                     segments.Remove(keyTypeExtension);
                 }
             }
-            return string.Join(".", segments);
+            return string.Join('.', segments);
         }
 
         private static IList<OpenApiParameter> ResolveFunctionParameters(IList<OpenApiParameter> parameters)
@@ -163,12 +164,12 @@ namespace Microsoft.OpenApi.Hidi.Formatters
                 // Replace content with a schema object of type array
                 // for structured or collection-valued function parameters
                 parameter.Content = null;
-                parameter.Schema = new OpenApiSchema
+                parameter.Schema = new()
                 {
-                    Type = "array",
-                    Items = new OpenApiSchema
+                    Type = JsonSchemaType.Array,
+                    Items = new()
                     {
-                        Type = "string"
+                        Type = JsonSchemaType.String
                     }
                 };
             }
@@ -177,9 +178,9 @@ namespace Microsoft.OpenApi.Hidi.Formatters
 
         private void AddAdditionalPropertiesToSchema(OpenApiSchema schema)
         {
-            if (schema != null && !_schemaLoop.Contains(schema) && "object".Equals(schema.Type, StringComparison.OrdinalIgnoreCase))
+            if (schema != null && !_schemaLoop.Contains(schema) && schema.Type.Equals(JsonSchemaType.Object))
             {
-                schema.AdditionalProperties = new OpenApiSchema() { Type = "object" };
+                schema.AdditionalProperties = new() { Type = JsonSchemaType.Object };
 
                 /* Because 'additionalProperties' are now being walked,
                  * we need a way to keep track of visited schemas to avoid
@@ -191,9 +192,8 @@ namespace Microsoft.OpenApi.Hidi.Formatters
 
         private static void ResolveOneOfSchema(OpenApiSchema schema)
         {
-            if (schema.OneOf?.Any() ?? false)
+            if (schema.OneOf?.FirstOrDefault() is { } newSchema)
             {
-                var newSchema = schema.OneOf.FirstOrDefault();
                 schema.OneOf = null;
                 FlattenSchema(schema, newSchema);
             }
@@ -201,9 +201,8 @@ namespace Microsoft.OpenApi.Hidi.Formatters
 
         private static void ResolveAnyOfSchema(OpenApiSchema schema)
         {
-            if (schema.AnyOf?.Any() ?? false)
+            if (schema.AnyOf?.FirstOrDefault() is { } newSchema)
             {
-                var newSchema = schema.AnyOf.FirstOrDefault();
                 schema.AnyOf = null;
                 FlattenSchema(schema, newSchema);
             }

@@ -1,10 +1,13 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json.Nodes;
 using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Extensions;
+using Microsoft.OpenApi.Helpers;
 using Microsoft.OpenApi.Interfaces;
 using Microsoft.OpenApi.Writers;
 
@@ -13,15 +16,16 @@ namespace Microsoft.OpenApi.Models
     /// <summary>
     /// Parameter Object.
     /// </summary>
-    public class OpenApiParameter : IOpenApiSerializable, IOpenApiReferenceable, IEffective<OpenApiParameter>, IOpenApiExtensible
+    public class OpenApiParameter : IOpenApiReferenceable, IOpenApiExtensible
     {
         private bool? _explode;
-        public ParameterStyle? _style;
+        private ParameterStyle? _style;
+        private OpenApiSchema _schema;
 
         /// <summary>
         /// Indicates if object is populated with data or is just a reference to the data
         /// </summary>
-        public bool UnresolvedReference { get; set; }
+        public virtual bool UnresolvedReference { get; set; }
 
         /// <summary>
         /// Reference object.
@@ -34,31 +38,31 @@ namespace Microsoft.OpenApi.Models
         /// If in is "header" and the name field is "Accept", "Content-Type" or "Authorization", the parameter definition SHALL be ignored.
         /// For all other cases, the name corresponds to the parameter name used by the in property.
         /// </summary>
-        public string Name { get; set; }
+        public virtual string Name { get; set; }
 
         /// <summary>
         /// REQUIRED. The location of the parameter.
         /// Possible values are "query", "header", "path" or "cookie".
         /// </summary>
-        public ParameterLocation? In { get; set; }
+        public virtual ParameterLocation? In { get; set; }
 
         /// <summary>
         /// A brief description of the parameter. This could contain examples of use.
         /// CommonMark syntax MAY be used for rich text representation.
         /// </summary>
-        public string Description { get; set; }
+        public virtual string Description { get; set; }
 
         /// <summary>
         /// Determines whether this parameter is mandatory.
         /// If the parameter location is "path", this property is REQUIRED and its value MUST be true.
         /// Otherwise, the property MAY be included and its default value is false.
         /// </summary>
-        public bool Required { get; set; }
+        public virtual bool Required { get; set; }
 
         /// <summary>
         /// Specifies that a parameter is deprecated and SHOULD be transitioned out of usage.
         /// </summary>
-        public bool Deprecated { get; set; } = false;
+        public virtual bool Deprecated { get; set; } = false;
 
         /// <summary>
         /// Sets the ability to pass empty-valued parameters.
@@ -67,16 +71,16 @@ namespace Microsoft.OpenApi.Models
         /// If style is used, and if behavior is n/a (cannot be serialized),
         /// the value of allowEmptyValue SHALL be ignored.
         /// </summary>
-        public bool AllowEmptyValue { get; set; } = false;
+        public virtual bool AllowEmptyValue { get; set; } = false;
 
         /// <summary>
         /// Describes how the parameter value will be serialized depending on the type of the parameter value.
         /// Default values (based on value of in): for query - form; for path - simple; for header - simple;
         /// for cookie - form.
         /// </summary>
-        public ParameterStyle? Style
-        { 
-            get => _style ?? SetDefaultStyleValue();
+        public virtual ParameterStyle? Style
+        {
+            get => _style ?? GetDefaultStyleValue();
             set => _style = value;
         }
 
@@ -87,7 +91,7 @@ namespace Microsoft.OpenApi.Models
         /// When style is form, the default value is true.
         /// For all other styles, the default value is false.
         /// </summary>
-        public bool Explode
+        public virtual bool Explode
         {
             get => _explode ?? Style == ParameterStyle.Form;
             set => _explode = value;
@@ -99,12 +103,16 @@ namespace Microsoft.OpenApi.Models
         /// This property only applies to parameters with an in value of query.
         /// The default value is false.
         /// </summary>
-        public bool AllowReserved { get; set; }
+        public virtual bool AllowReserved { get; set; }
 
         /// <summary>
         /// The schema defining the type used for the parameter.
         /// </summary>
-        public OpenApiSchema Schema { get; set; }
+        public virtual OpenApiSchema Schema 
+        { 
+            get => _schema; 
+            set => _schema = value;  
+        }
 
         /// <summary>
         /// Examples of the media type. Each example SHOULD contain a value
@@ -113,7 +121,7 @@ namespace Microsoft.OpenApi.Models
         /// Furthermore, if referencing a schema which contains an example,
         /// the examples value SHALL override the example provided by the schema.
         /// </summary>
-        public IDictionary<string, OpenApiExample> Examples { get; set; } = new Dictionary<string, OpenApiExample>();
+        public virtual IDictionary<string, OpenApiExample> Examples { get; set; } = new Dictionary<string, OpenApiExample>();
 
         /// <summary>
         /// Example of the media type. The example SHOULD match the specified schema and encoding properties
@@ -123,7 +131,7 @@ namespace Microsoft.OpenApi.Models
         /// To represent examples of media types that cannot naturally be represented in JSON or YAML,
         /// a string value can contain the example with escaping where necessary.
         /// </summary>
-        public IOpenApiAny Example { get; set; }
+        public virtual JsonNode Example { get; set; }
 
         /// <summary>
         /// A map containing the representations for the parameter.
@@ -134,17 +142,17 @@ namespace Microsoft.OpenApi.Models
         /// When example or examples are provided in conjunction with the schema object,
         /// the example MUST follow the prescribed serialization strategy for the parameter.
         /// </summary>
-        public IDictionary<string, OpenApiMediaType> Content { get; set; } = new Dictionary<string, OpenApiMediaType>();
+        public virtual IDictionary<string, OpenApiMediaType> Content { get; set; } = new Dictionary<string, OpenApiMediaType>();
 
         /// <summary>
         /// This object MAY be extended with Specification Extensions.
         /// </summary>
-        public IDictionary<string, IOpenApiExtension> Extensions { get; set; } = new Dictionary<string, IOpenApiExtension>();
+        public virtual IDictionary<string, IOpenApiExtension> Extensions { get; set; } = new Dictionary<string, IOpenApiExtension>();
 
         /// <summary>
         /// A parameterless constructor
         /// </summary>
-        public OpenApiParameter() {}
+        public OpenApiParameter() { }
 
         /// <summary>
         /// Initializes a clone instance of <see cref="OpenApiParameter"/> object
@@ -160,9 +168,9 @@ namespace Microsoft.OpenApi.Models
             Style = parameter?.Style ?? Style;
             Explode = parameter?.Explode ?? Explode;
             AllowReserved = parameter?.AllowReserved ?? AllowReserved;
-            Schema = parameter?.Schema != null ? new(parameter?.Schema) : null;
+            _schema = parameter?.Schema != null ? new(parameter.Schema) : null;
             Examples = parameter?.Examples != null ? new Dictionary<string, OpenApiExample>(parameter.Examples) : null;
-            Example = OpenApiAnyCloneHelper.CloneFromCopyConstructor(parameter?.Example);
+            Example = parameter?.Example != null ? JsonNodeCloneHelper.Clone(parameter.Example) : null;
             Content = parameter?.Content != null ? new Dictionary<string, OpenApiMediaType>(parameter.Content) : null;
             Extensions = parameter?.Extensions != null ? new Dictionary<string, IOpenApiExtension>(parameter.Extensions) : null;
             AllowEmptyValue = parameter?.AllowEmptyValue ?? AllowEmptyValue;
@@ -170,55 +178,26 @@ namespace Microsoft.OpenApi.Models
         }
 
         /// <summary>
+        /// Serialize <see cref="OpenApiParameter"/> to Open Api v3.1
+        /// </summary>
+        public virtual void SerializeAsV31(IOpenApiWriter writer)
+        {
+            SerializeInternal(writer, OpenApiSpecVersion.OpenApi3_1, (writer, element) => element.SerializeAsV31(writer));
+        }
+
+        /// <summary>
         /// Serialize <see cref="OpenApiParameter"/> to Open Api v3.0
         /// </summary>
-        public void SerializeAsV3(IOpenApiWriter writer)
+        public virtual void SerializeAsV3(IOpenApiWriter writer)
         {
-            if (writer == null)
-            {
-                throw Error.ArgumentNull(nameof(writer));
-            }
-
-            var target = this;
-
-            if (Reference != null)
-            {
-                if (!writer.GetSettings().ShouldInlineReference(Reference))
-                {
-                    Reference.SerializeAsV3(writer);
-                    return;
-                } 
-                else
-                {
-                    target = this.GetEffective(Reference.HostDocument);
-                }
-            }
-
-            target.SerializeAsV3WithoutReference(writer);
+            SerializeInternal(writer, OpenApiSpecVersion.OpenApi3_0, (writer, element) => element.SerializeAsV3(writer));
         }
 
-        /// <summary>
-        /// Returns an effective OpenApiParameter object based on the presence of a $ref 
-        /// </summary>
-        /// <param name="doc">The host OpenApiDocument that contains the reference.</param>
-        /// <returns>OpenApiParameter</returns>
-        public OpenApiParameter GetEffective(OpenApiDocument doc)
+        internal virtual void SerializeInternal(IOpenApiWriter writer, OpenApiSpecVersion version, 
+            Action<IOpenApiWriter, IOpenApiSerializable> callback)
         {
-            if (this.Reference != null)
-            {
-                return doc.ResolveReferenceTo<OpenApiParameter>(this.Reference);
-            }
-            else
-            {
-                return this;
-            }
-        }
+            Utils.CheckArgumentNull(writer);
 
-        /// <summary>
-        /// Serialize to OpenAPI V3 document without using reference.
-        /// </summary>
-        public void SerializeAsV3WithoutReference(IOpenApiWriter writer)
-        {
             writer.WriteStartObject();
 
             // name
@@ -238,7 +217,7 @@ namespace Microsoft.OpenApi.Models
 
             // allowEmptyValue
             writer.WriteProperty(OpenApiConstants.AllowEmptyValue, AllowEmptyValue, false);
-            
+
             // style
             if (_style.HasValue)
             {
@@ -246,61 +225,36 @@ namespace Microsoft.OpenApi.Models
             }
 
             // explode
-            writer.WriteProperty(OpenApiConstants.Explode, _explode, _style.HasValue && _style.Value == ParameterStyle.Form);
+            writer.WriteProperty(OpenApiConstants.Explode, _explode, _style is ParameterStyle.Form);
 
             // allowReserved
             writer.WriteProperty(OpenApiConstants.AllowReserved, AllowReserved, false);
 
             // schema
-            writer.WriteOptionalObject(OpenApiConstants.Schema, Schema, (w, s) => s.SerializeAsV3(w));
+            writer.WriteOptionalObject(OpenApiConstants.Schema, Schema, callback);
 
             // example
             writer.WriteOptionalObject(OpenApiConstants.Example, Example, (w, s) => w.WriteAny(s));
 
             // examples
-            writer.WriteOptionalMap(OpenApiConstants.Examples, Examples, (w, e) => e.SerializeAsV3(w));
+            writer.WriteOptionalMap(OpenApiConstants.Examples, Examples, callback);
 
             // content
-            writer.WriteOptionalMap(OpenApiConstants.Content, Content, (w, c) => c.SerializeAsV3(w));
+            writer.WriteOptionalMap(OpenApiConstants.Content, Content, callback);
 
             // extensions
-            writer.WriteExtensions(Extensions, OpenApiSpecVersion.OpenApi3_0);
+            writer.WriteExtensions(Extensions, version);
 
             writer.WriteEndObject();
         }
 
         /// <summary>
-        /// Serialize <see cref="OpenApiParameter"/> to Open Api v2.0
-        /// </summary>
-        public void SerializeAsV2(IOpenApiWriter writer)
-        {
-            if (writer == null)
-            {
-                throw Error.ArgumentNull(nameof(writer));
-            }
-
-            var target = this;
-            if (Reference != null)
-            {
-                if (!writer.GetSettings().ShouldInlineReference(Reference))
-                {
-                    Reference.SerializeAsV2(writer);
-                    return;
-                } 
-                else
-                {
-                    target = this.GetEffective(Reference.HostDocument);
-                }
-            }
-
-            target.SerializeAsV2WithoutReference(writer);
-        }
-
-        /// <summary>
         /// Serialize to OpenAPI V2 document without using reference.
         /// </summary>
-        public void SerializeAsV2WithoutReference(IOpenApiWriter writer)
+        public virtual void SerializeAsV2(IOpenApiWriter writer)
         {
+            Utils.CheckArgumentNull(writer);
+
             writer.WriteStartObject();
 
             // in
@@ -338,8 +292,7 @@ namespace Microsoft.OpenApi.Models
             }
             // In V2 parameter's type can't be a reference to a custom object schema or can't be of type object
             // So in that case map the type as string.
-            else
-            if (Schema?.UnresolvedReference == true || Schema?.Type == "object")
+            else if (Schema?.UnresolvedReference == true || Schema?.Type == JsonSchemaType.Object)
             {
                 writer.WriteProperty(OpenApiConstants.Type, "string");
             }
@@ -365,10 +318,10 @@ namespace Microsoft.OpenApi.Models
                 if (Schema != null)
                 {
                     Schema.WriteAsItemsProperties(writer);
-
-                    if (Schema.Extensions != null)
+                    var extensions = Schema.Extensions;
+                    if (extensions != null)
                     {
-                        foreach (var key in Schema.Extensions.Keys)
+                        foreach (var key in extensions.Keys)
                         {
                             // The extension will already have been serialized as part of the call to WriteAsItemsProperties above,
                             // so remove it from the cloned collection so we don't write it again.
@@ -380,7 +333,7 @@ namespace Microsoft.OpenApi.Models
                 // allowEmptyValue
                 writer.WriteProperty(OpenApiConstants.AllowEmptyValue, AllowEmptyValue, false);
 
-                if (this.In == ParameterLocation.Query && "array".Equals(Schema?.Type, StringComparison.OrdinalIgnoreCase))
+                if (this.In == ParameterLocation.Query && Schema?.Type == JsonSchemaType.Array)
                 {
                     if (this.Style == ParameterStyle.Form && this.Explode == true)
                     {
@@ -397,6 +350,19 @@ namespace Microsoft.OpenApi.Models
                 }
             }
 
+            //examples
+            if (Examples != null && Examples.Any())
+            {
+                writer.WritePropertyName(OpenApiConstants.ExamplesExtension);
+                writer.WriteStartObject();
+
+                foreach (var example in Examples)
+                {
+                    writer.WritePropertyName(example.Key);
+                    example.Value.SerializeInternal(writer, OpenApiSpecVersion.OpenApi2_0);
+                }
+                writer.WriteEndObject();
+            }
 
             // extensions
             writer.WriteExtensions(extensionsClone, OpenApiSpecVersion.OpenApi2_0);
@@ -404,20 +370,19 @@ namespace Microsoft.OpenApi.Models
             writer.WriteEndObject();
         }
 
-        private ParameterStyle? SetDefaultStyleValue()
+        internal virtual ParameterStyle? GetDefaultStyleValue()
         {
             Style = In switch
             {
-                ParameterLocation.Query => (ParameterStyle?)ParameterStyle.Form,
-                ParameterLocation.Header => (ParameterStyle?)ParameterStyle.Simple,
-                ParameterLocation.Path => (ParameterStyle?)ParameterStyle.Simple,
-                ParameterLocation.Cookie => (ParameterStyle?)ParameterStyle.Form,
+                ParameterLocation.Query => ParameterStyle.Form,
+                ParameterLocation.Header => ParameterStyle.Simple,
+                ParameterLocation.Path => ParameterStyle.Simple,
+                ParameterLocation.Cookie => ParameterStyle.Form,
                 _ => (ParameterStyle?)ParameterStyle.Simple,
             };
 
             return Style;
         }
-
     }
 
     /// <summary>

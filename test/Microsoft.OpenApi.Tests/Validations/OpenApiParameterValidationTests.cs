@@ -1,9 +1,9 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Nodes;
 using FluentAssertions;
 using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Extensions;
@@ -21,8 +21,8 @@ namespace Microsoft.OpenApi.Validations.Tests
         public void ValidateFieldIsRequiredInParameter()
         {
             // Arrange
-            string nameError = String.Format(SRResource.Validation_FieldIsRequired, "name", "parameter");
-            string inError = String.Format(SRResource.Validation_FieldIsRequired, "in", "parameter");
+            var nameError = string.Format(SRResource.Validation_FieldIsRequired, "name", "parameter");
+            var inError = string.Format(SRResource.Validation_FieldIsRequired, "in", "parameter");
             var parameter = new OpenApiParameter();
 
             // Act
@@ -41,7 +41,7 @@ namespace Microsoft.OpenApi.Validations.Tests
         public void ValidateRequiredIsTrueWhenInIsPathInParameter()
         {
             // Arrange
-            var parameter = new OpenApiParameter()
+            var parameter = new OpenApiParameter
             {
                 Name = "name",
                 In = ParameterLocation.Path
@@ -66,15 +66,15 @@ namespace Microsoft.OpenApi.Validations.Tests
         {
             // Arrange
             IEnumerable<OpenApiError> warnings;
-            var parameter = new OpenApiParameter()
+            var parameter = new OpenApiParameter
             {
                 Name = "parameter1",
                 In = ParameterLocation.Path,
                 Required = true,
-                Example = new OpenApiInteger(55),
-                Schema = new OpenApiSchema()
+                Example = 55,
+                Schema = new()
                 {
-                    Type = "string",
+                    Type = JsonSchemaType.String,
                 }
             };
 
@@ -85,18 +85,10 @@ namespace Microsoft.OpenApi.Validations.Tests
             walker.Walk(parameter);
 
             warnings = validator.Warnings;
-            bool result = !warnings.Any();
+            var result = !warnings.Any();
 
             // Assert
-            result.Should().BeFalse();
-            warnings.Select(e => e.Message).Should().BeEquivalentTo(new[]
-            {
-                RuleHelpers.DataTypeMismatchedErrorMessage
-            });
-            warnings.Select(e => e.Pointer).Should().BeEquivalentTo(new[]
-            {
-                "#/{parameter1}/example",
-            });
+            result.Should().BeTrue();
         }
 
         [Fact]
@@ -105,78 +97,63 @@ namespace Microsoft.OpenApi.Validations.Tests
             // Arrange
             IEnumerable<OpenApiError> warnings;
 
-            var parameter = new OpenApiParameter()
+            var parameter = new OpenApiParameter
             {
                 Name = "parameter1",
                 In = ParameterLocation.Path,
                 Required = true,
-                Schema = new OpenApiSchema()
+                Schema = new()
                 {
-                    Type = "object",
-                    AdditionalProperties = new OpenApiSchema()
+                    Type = JsonSchemaType.Object,
+                    AdditionalProperties = new()
                     {
-                        Type = "integer",
+                        Type = JsonSchemaType.Integer,
                     }
                 },
                 Examples =
                     {
-                        ["example0"] = new OpenApiExample()
+                        ["example0"] = new()
                         {
-                            Value = new OpenApiString("1"),
+                            Value = "1",
                         },
-                        ["example1"] = new OpenApiExample()
+                        ["example1"] = new()
                         {
-                           Value = new OpenApiObject()
+                           Value = new JsonObject()
                             {
-                                ["x"] = new OpenApiInteger(2),
-                                ["y"] = new OpenApiString("20"),
-                                ["z"] = new OpenApiString("200")
+                                ["x"] = 2,
+                                ["y"] = "20",
+                                ["z"] = "200"
                             }
                         },
-                        ["example2"] = new OpenApiExample()
+                        ["example2"] = new()
                         {
-                            Value =
-                            new OpenApiArray()
-                            {
-                                new OpenApiInteger(3)
-                            }
+                            Value = new JsonArray(){3}
                         },
-                        ["example3"] = new OpenApiExample()
+                        ["example3"] = new()
                         {
-                            Value = new OpenApiObject()
+                            Value = new JsonObject()
                             {
-                                ["x"] = new OpenApiInteger(4),
-                                ["y"] = new OpenApiInteger(40),
+                                ["x"] = 4,
+                                ["y"] = 40
                             }
                         },
                     }
             };
 
             // Act
-            var validator = new OpenApiValidator(ValidationRuleSet.GetDefaultRuleSet());
+            var defaultRuleSet = ValidationRuleSet.GetDefaultRuleSet();
+            defaultRuleSet.Add(typeof(OpenApiParameter), OpenApiNonDefaultRules.ParameterMismatchedDataType);
+
+            var validator = new OpenApiValidator(defaultRuleSet);
             validator.Enter("{parameter1}");
             var walker = new OpenApiWalker(validator);
             walker.Walk(parameter);
 
             warnings = validator.Warnings;
-            bool result = !warnings.Any();
+            var result = !warnings.Any();
 
             // Assert
             result.Should().BeFalse();
-            warnings.Select(e => e.Message).Should().BeEquivalentTo(new[]
-            {
-                RuleHelpers.DataTypeMismatchedErrorMessage,
-                RuleHelpers.DataTypeMismatchedErrorMessage,
-                RuleHelpers.DataTypeMismatchedErrorMessage,
-            });
-            warnings.Select(e => e.Pointer).Should().BeEquivalentTo(new[]
-            {
-                // #enum/0 is not an error since the spec allows
-                // representing an object using a string.
-                "#/{parameter1}/examples/example1/value/y",
-                "#/{parameter1}/examples/example1/value/z",
-                "#/{parameter1}/examples/example2/value"
-            });
         }
 
         [Fact]
@@ -185,14 +162,14 @@ namespace Microsoft.OpenApi.Validations.Tests
             // Arrange
             IEnumerable<OpenApiError> errors;
 
-            var parameter = new OpenApiParameter()
+            var parameter = new OpenApiParameter
             {
                 Name = "parameter1",
                 In = ParameterLocation.Path,
                 Required = true,
-                Schema = new OpenApiSchema()
+                Schema = new()
                 {
-                    Type = "string",
+                    Type = JsonSchemaType.String,
                 }
             };
 
@@ -203,7 +180,7 @@ namespace Microsoft.OpenApi.Validations.Tests
             walker.Walk(parameter);
 
             errors = validator.Errors;
-            bool result = errors.Any();
+            var result = errors.Any();
 
             // Assert
             result.Should().BeTrue();
@@ -223,14 +200,14 @@ namespace Microsoft.OpenApi.Validations.Tests
             // Arrange
             IEnumerable<OpenApiError> errors;
 
-            var parameter = new OpenApiParameter()
+            var parameter = new OpenApiParameter
             {
                 Name = "parameter1",
                 In = ParameterLocation.Path,
                 Required = true,
-                Schema = new OpenApiSchema()
+                Schema = new()
                 {
-                    Type = "string",
+                    Type = JsonSchemaType.String,
                 }
             };
 
@@ -246,7 +223,7 @@ namespace Microsoft.OpenApi.Validations.Tests
             walker.Walk(parameter);
 
             errors = validator.Errors;
-            bool result = errors.Any();
+            var result = errors.Any();
 
             // Assert
             result.Should().BeFalse();

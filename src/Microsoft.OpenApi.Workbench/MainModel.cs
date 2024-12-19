@@ -1,20 +1,19 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.OpenApi.Extensions;
 using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi.Reader;
 using Microsoft.OpenApi.Readers;
 using Microsoft.OpenApi.Services;
 using Microsoft.OpenApi.Validations;
-using Microsoft.OpenApi.Writers;
 
 namespace Microsoft.OpenApi.Workbench
 {
@@ -25,10 +24,10 @@ namespace Microsoft.OpenApi.Workbench
     {
         private string _input;
 
-        private bool _inlineLocal = false;
-        private bool _inlineExternal = false;
+        private bool _inlineLocal;
+        private bool _inlineExternal;
 
-        private bool _resolveExternal = false;
+        private bool _resolveExternal;
 
         private string _inputFile;
 
@@ -40,7 +39,6 @@ namespace Microsoft.OpenApi.Workbench
 
         private string _renderTime;
 
-                
         /// <summary>
         /// Default format.
         /// </summary>
@@ -51,8 +49,7 @@ namespace Microsoft.OpenApi.Workbench
         /// </summary>
         private OpenApiSpecVersion _version = OpenApiSpecVersion.OpenApi3_0;
 
-
-        private HttpClient _httpClient = new HttpClient();
+        private static readonly HttpClient _httpClient = new();
 
         public string Input
         {
@@ -162,31 +159,38 @@ namespace Microsoft.OpenApi.Workbench
                 _version = value;
                 OnPropertyChanged(nameof(IsV2_0));
                 OnPropertyChanged(nameof(IsV3_0));
+                OnPropertyChanged(nameof(IsV3_1));
             }
         }
 
         public bool IsYaml
         {
             get => Format == OpenApiFormat.Yaml;
-            set => Format = OpenApiFormat.Yaml;
+            set => Format = value ? OpenApiFormat.Yaml : Format;
         }
 
         public bool IsJson
         {
             get => Format == OpenApiFormat.Json;
-            set => Format = OpenApiFormat.Json;
+            set => Format = value ? OpenApiFormat.Json : Format;
         }
 
         public bool IsV2_0
         {
             get => Version == OpenApiSpecVersion.OpenApi2_0;
-            set => Version = OpenApiSpecVersion.OpenApi2_0;
+            set => Version = value ? OpenApiSpecVersion.OpenApi2_0 : Version;
         }
 
         public bool IsV3_0
         {
             get => Version == OpenApiSpecVersion.OpenApi3_0;
-            set => Version = OpenApiSpecVersion.OpenApi3_0;
+            set => Version = value ? OpenApiSpecVersion.OpenApi3_0 : Version;
+        }
+
+        public bool IsV3_1
+        {
+            get => Version == OpenApiSpecVersion.OpenApi3_1;
+            set => Version = value ? OpenApiSpecVersion.OpenApi3_1 : Version;
         }
 
         /// <summary>
@@ -197,7 +201,7 @@ namespace Microsoft.OpenApi.Workbench
             var handler = PropertyChanged;
             if (handler != null)
             {
-                handler(this, new PropertyChangedEventArgs(propertyName));
+                handler(this, new(propertyName));
             }
         }
 
@@ -205,21 +209,18 @@ namespace Microsoft.OpenApi.Workbench
         /// The core method of the class.
         /// Runs the parsing and serializing.
         /// </summary>
-        internal async Task ParseDocument()
+        internal async Task ParseDocumentAsync()
         {
+            OpenApiReaderRegistry.RegisterReader(OpenApiConstants.Yaml, new OpenApiYamlReader());
+            OpenApiReaderRegistry.RegisterReader(OpenApiConstants.Yml, new OpenApiYamlReader());
+
             Stream stream = null;
             try
             {
                 if (!string.IsNullOrWhiteSpace(_inputFile))
                 {
-                    if (_inputFile.StartsWith("http"))
-                    {
-                        stream = await _httpClient.GetStreamAsync(_inputFile);
-                    } 
-                    else
-                    {
-                        stream = new FileStream(_inputFile, FileMode.Open);
-                    }
+                    stream = _inputFile.StartsWith("http") ? await _httpClient.GetStreamAsync(_inputFile) 
+                        : new FileStream(_inputFile, FileMode.Open);
                 }
                 else
                 {
@@ -230,7 +231,6 @@ namespace Microsoft.OpenApi.Workbench
                     stream = CreateStream(_input);
                 }
 
-
                 var stopwatch = new Stopwatch();
                 stopwatch.Start();
 
@@ -239,21 +239,15 @@ namespace Microsoft.OpenApi.Workbench
                     ReferenceResolution = ResolveExternal ? ReferenceResolutionSetting.ResolveAllReferences : ReferenceResolutionSetting.ResolveLocalReferences,
                     RuleSet = ValidationRuleSet.GetDefaultRuleSet()
                 };
-                if (ResolveExternal)
+                if (ResolveExternal && !string.IsNullOrWhiteSpace(_inputFile))
                 {
-                    if (_inputFile.StartsWith("http"))
-                    {
-                        settings.BaseUrl = new Uri(_inputFile);
-                    }
-                    else
-                    {
-                        settings.BaseUrl = new Uri("file://" + Path.GetDirectoryName(_inputFile) + "/");
-                    }
+                    settings.BaseUrl = _inputFile.StartsWith("http") ? new(_inputFile) 
+                        : new("file://" + Path.GetDirectoryName(_inputFile) + "/");
                 }
-                var readResult = await new OpenApiStreamReader(settings
-                ).ReadAsync(stream);
-                var document = readResult.OpenApiDocument;
-                var context = readResult.OpenApiDiagnostic;
+
+                var readResult = await OpenApiDocument.LoadAsync(stream, Format.GetDisplayName());
+                var document = readResult.Document;
+                var context = readResult.Diagnostic;
 
                 stopwatch.Stop();
                 ParseTime = $"{stopwatch.ElapsedMilliseconds} ms";
@@ -292,13 +286,13 @@ namespace Microsoft.OpenApi.Workbench
                 Output = string.Empty;
                 Errors = "Failed to parse input: " + ex.Message;
             }
-            finally {
+            finally
+            {
                 if (stream != null)
                 {
                     stream.Close();
-                    stream.Dispose();
+                    await stream.DisposeAsync();
                 }
-
             }
         }
 
@@ -308,22 +302,23 @@ namespace Microsoft.OpenApi.Workbench
         private string WriteContents(OpenApiDocument document)
         {
             var outputStream = new MemoryStream();
-            
+
             document.Serialize(
                 outputStream,
                 Version,
                 Format,
-                new OpenApiWriterSettings() {
+                new()
+                {
                     InlineLocalReferences = InlineLocal,
                     InlineExternalReferences = InlineExternal
                 });
-            
+
             outputStream.Position = 0;
 
             return new StreamReader(outputStream).ReadToEnd();
         }
 
-        private MemoryStream CreateStream(string text)
+        private static MemoryStream CreateStream(string text)
         {
             var stream = new MemoryStream();
             var writer = new StreamWriter(stream);

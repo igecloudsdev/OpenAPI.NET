@@ -1,5 +1,5 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
 using System;
 using Microsoft.OpenApi.Models;
@@ -17,7 +17,7 @@ namespace Microsoft.OpenApi.Validations.Rules
         /// Validate the field is required.
         /// </summary>
         public static ValidationRule<OpenApiParameter> ParameterRequiredFields =>
-            new ValidationRule<OpenApiParameter>(
+            new(nameof(ParameterRequiredFields),
                 (context, item) =>
                 {
                     // name
@@ -43,7 +43,7 @@ namespace Microsoft.OpenApi.Validations.Rules
         /// Validate the "required" field is true when "in" is path.
         /// </summary>
         public static ValidationRule<OpenApiParameter> RequiredMustBeTrueWhenInIsPath =>
-            new ValidationRule<OpenApiParameter>(
+            new(nameof(RequiredMustBeTrueWhenInIsPath),
                 (context, item) =>
                 {
                     // required
@@ -59,51 +59,13 @@ namespace Microsoft.OpenApi.Validations.Rules
                 });
 
         /// <summary>
-        /// Validate the data matches with the given data type.
-        /// </summary>
-        public static ValidationRule<OpenApiParameter> ParameterMismatchedDataType =>
-            new ValidationRule<OpenApiParameter>(
-                (context, parameter) =>
-                {
-                    // example
-                    context.Enter("example");
-
-                    if (parameter.Example != null)
-                    {
-                        RuleHelpers.ValidateDataTypeMismatch(context, nameof(ParameterMismatchedDataType), parameter.Example, parameter.Schema);
-                    }
-
-                    context.Exit();
-
-                    // examples
-                    context.Enter("examples");
-
-                    if (parameter.Examples != null)
-                    {
-                        foreach (var key in parameter.Examples.Keys)
-                        {
-                            if (parameter.Examples[key] != null)
-                            {
-                                context.Enter(key);
-                                context.Enter("value");
-                                RuleHelpers.ValidateDataTypeMismatch(context, nameof(ParameterMismatchedDataType), parameter.Examples[key]?.Value, parameter.Schema);
-                                context.Exit();
-                                context.Exit();
-                            }
-                        }
-                    }
-
-                    context.Exit();
-                });
-
-        /// <summary>
-        /// Validate that a path parameter should always appear in the path 
+        /// Validate that a path parameter should always appear in the path
         /// </summary>
         public static ValidationRule<OpenApiParameter> PathParameterShouldBeInThePath =>
-            new ValidationRule<OpenApiParameter>(
+            new(nameof(PathParameterShouldBeInThePath),
                 (context, parameter) =>
                 {
-                    if (parameter.In == ParameterLocation.Path && 
+                    if (parameter.In == ParameterLocation.Path &&
                            !(context.PathString.Contains("{" + parameter.Name + "}") || context.PathString.Contains("#/components")))
                     {
                         context.Enter("in");

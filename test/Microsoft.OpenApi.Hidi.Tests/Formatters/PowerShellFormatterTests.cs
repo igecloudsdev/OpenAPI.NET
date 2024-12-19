@@ -21,14 +21,15 @@ namespace Microsoft.OpenApi.Hidi.Tests.Formatters
         public void FormatOperationIdsInOpenAPIDocument(string operationId, string expectedOperationId, OperationType operationType, string path = "/foo")
         {
             // Arrange
-            var openApiDocument = new OpenApiDocument()
+            var openApiDocument = new OpenApiDocument
             {
                 Info = new() { Title = "Test", Version = "1.0" },
-                Servers = new List<OpenApiServer>() { new() { Url = "https://localhost/" } },
+                Servers = new List<OpenApiServer> { new() { Url = "https://localhost/" } },
                 Paths = new()
                 {
                     { path, new() {
-                        Operations = new Dictionary<OperationType, OpenApiOperation>() {
+                        Operations = new Dictionary<OperationType, OpenApiOperation>
+                        {
                             { operationType, new() { OperationId = operationId } }
                           }
                         }
@@ -56,18 +57,21 @@ namespace Microsoft.OpenApi.Hidi.Tests.Formatters
             var walker = new OpenApiWalker(powerShellFormatter);
             walker.Walk(openApiDocument);
 
-            var testSchema = openApiDocument.Components.Schemas["TestSchema"];
-            var averageAudioDegradationProperty = testSchema.Properties["averageAudioDegradation"];
-            var defaultPriceProperty = testSchema.Properties["defaultPrice"];
+            var testSchema = openApiDocument.Components?.Schemas?["TestSchema"];
+            var averageAudioDegradationProperty = testSchema?.Properties["averageAudioDegradation"];
+            var defaultPriceProperty = testSchema?.Properties["defaultPrice"];
 
             // Assert
-            Assert.Null(averageAudioDegradationProperty.AnyOf);
-            Assert.Equal("number", averageAudioDegradationProperty.Type);
-            Assert.Equal("float", averageAudioDegradationProperty.Format);
-            Assert.True(averageAudioDegradationProperty.Nullable);
-            Assert.Null(defaultPriceProperty.OneOf);
-            Assert.Equal("number", defaultPriceProperty.Type);
-            Assert.Equal("double", defaultPriceProperty.Format);
+            Assert.NotNull(openApiDocument.Components);
+            Assert.NotNull(openApiDocument.Components.Schemas);
+            Assert.NotNull(testSchema);
+            Assert.Null(averageAudioDegradationProperty?.AnyOf);
+            Assert.Equal(JsonSchemaType.Number, averageAudioDegradationProperty?.Type);
+            Assert.Equal("float", averageAudioDegradationProperty?.Format);
+            Assert.True(averageAudioDegradationProperty?.Nullable);
+            Assert.Null(defaultPriceProperty?.OneOf);
+            Assert.Equal(JsonSchemaType.Number, defaultPriceProperty?.Type);
+            Assert.Equal("double", defaultPriceProperty?.Format);
             Assert.NotNull(testSchema.AdditionalProperties);
         }
 
@@ -82,24 +86,24 @@ namespace Microsoft.OpenApi.Hidi.Tests.Formatters
             var walker = new OpenApiWalker(powerShellFormatter);
             walker.Walk(openApiDocument);
 
-            var idsParameter = openApiDocument.Paths["/foo"].Operations[OperationType.Get].Parameters.Where(static p => p.Name == "ids").FirstOrDefault();
+            var idsParameter = openApiDocument.Paths["/foo"].Operations[OperationType.Get].Parameters?.Where(static p => p.Name == "ids").FirstOrDefault();
 
             // Assert
             Assert.Null(idsParameter?.Content);
             Assert.NotNull(idsParameter?.Schema);
-            Assert.Equal("array", idsParameter?.Schema.Type);
+            Assert.Equal(JsonSchemaType.Array, idsParameter?.Schema.Type);
         }
 
         private static OpenApiDocument GetSampleOpenApiDocument()
         {
-            return new OpenApiDocument()
+            return new()
             {
                 Info = new() { Title = "Test", Version = "1.0" },
-                Servers = new List<OpenApiServer>() { new() { Url = "https://localhost/" } },
+                Servers = new List<OpenApiServer> { new() { Url = "https://localhost/" } },
                 Paths = new() {
                     { "/foo", new()
                         {
-                            Operations = new Dictionary<OperationType, OpenApiOperation>()
+                            Operations = new Dictionary<OperationType, OpenApiOperation>
                             {
                                 {
                                     OperationType.Get, new()
@@ -107,7 +111,7 @@ namespace Microsoft.OpenApi.Hidi.Tests.Formatters
                                         OperationId = "Foo.GetFoo",
                                         Parameters = new List<OpenApiParameter>
                                         {
-                                            new OpenApiParameter()
+                                            new()
                                             {
                                                 Name = "ids",
                                                 In = ParameterLocation.Query,
@@ -117,12 +121,12 @@ namespace Microsoft.OpenApi.Hidi.Tests.Formatters
                                                         "application/json",
                                                         new OpenApiMediaType
                                                         {
-                                                            Schema = new OpenApiSchema
+                                                            Schema = new()
                                                             {
-                                                                Type = "array",
-                                                                Items = new OpenApiSchema
+                                                                Type = JsonSchemaType.Array,
+                                                                Items = new()
                                                                 {
-                                                                    Type = "string"
+                                                                    Type = JsonSchemaType.String
                                                                 }
                                                             }
                                                         }
@@ -133,7 +137,7 @@ namespace Microsoft.OpenApi.Hidi.Tests.Formatters
                                         Extensions = new Dictionary<string, IOpenApiExtension>
                                         {
                                             {
-                                                "x-ms-docs-operation-type", new OpenApiString("function")
+                                                "x-ms-docs-operation-type", new OpenApiAny("function")
                                             }
                                         }
                                     }
@@ -148,7 +152,7 @@ namespace Microsoft.OpenApi.Hidi.Tests.Formatters
                     {
                         { "TestSchema",  new OpenApiSchema
                             {
-                                Type = "object",
+                                Type = JsonSchemaType.Object,
                                 Properties = new Dictionary<string, OpenApiSchema>
                                 {
                                     {
@@ -156,8 +160,8 @@ namespace Microsoft.OpenApi.Hidi.Tests.Formatters
                                         {
                                             AnyOf = new List<OpenApiSchema>
                                             {
-                                                new OpenApiSchema { Type = "number" },
-                                                new OpenApiSchema { Type = "string" }
+                                                new() { Type = JsonSchemaType.Number },
+                                                new() { Type = JsonSchemaType.String }
                                             },
                                             Format = "float",
                                             Nullable = true
@@ -168,14 +172,14 @@ namespace Microsoft.OpenApi.Hidi.Tests.Formatters
                                         {
                                             OneOf = new List<OpenApiSchema>
                                             {
-                                                new OpenApiSchema { Type = "number", Format = "double" },
-                                                new OpenApiSchema { Type = "string" }
+                                                new() { Type = JsonSchemaType.Number, Format = "double" },
+                                                new() { Type = JsonSchemaType.String }
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
+                        } 
                     }
                 }
             };

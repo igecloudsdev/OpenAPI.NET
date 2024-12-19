@@ -1,9 +1,9 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
 using System;
+using System.Linq;
 using Microsoft.OpenApi.Interfaces;
-using Microsoft.OpenApi.Models;
 using Microsoft.OpenApi.Properties;
 
 namespace Microsoft.OpenApi.Validations.Rules
@@ -18,17 +18,14 @@ namespace Microsoft.OpenApi.Validations.Rules
         /// Extension name MUST start with "x-".
         /// </summary>
         public static ValidationRule<IOpenApiExtensible> ExtensionNameMustStartWithXDash =>
-            new ValidationRule<IOpenApiExtensible>(
+            new(nameof(ExtensionNameMustStartWithXDash),
                 (context, item) =>
                 {
                     context.Enter("extensions");
-                    foreach (var extensible in item.Extensions)
+                    foreach (var extensible in item.Extensions.Keys.Where(static x => !x.StartsWith("x-", StringComparison.OrdinalIgnoreCase)))
                     {
-                        if (!extensible.Key.StartsWith("x-"))
-                        {
-                            context.CreateError(nameof(ExtensionNameMustStartWithXDash),
-                                String.Format(SRResource.Validation_ExtensionNameMustBeginWithXDash, extensible.Key, context.PathString));
-                        }
+                        context.CreateError(nameof(ExtensionNameMustStartWithXDash),
+                            string.Format(SRResource.Validation_ExtensionNameMustBeginWithXDash, extensible, context.PathString));
                     }
                     context.Exit();
                 });

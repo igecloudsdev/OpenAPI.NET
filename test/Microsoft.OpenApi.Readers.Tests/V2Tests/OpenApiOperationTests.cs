@@ -4,13 +4,17 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Text.Json.Nodes;
 using FluentAssertions;
 using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Extensions;
 using Microsoft.OpenApi.Interfaces;
 using Microsoft.OpenApi.Models;
-using Microsoft.OpenApi.Readers.ParseNodes;
-using Microsoft.OpenApi.Readers.V2;
+using Microsoft.OpenApi.Reader.ParseNodes;
+using Microsoft.OpenApi.Reader.V2;
+using Microsoft.OpenApi.Reader.V3;
+using Microsoft.OpenApi.Tests;
+using Microsoft.OpenApi.Writers;
 using Xunit;
 
 namespace Microsoft.OpenApi.Readers.Tests.V2Tests
@@ -33,9 +37,9 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
                     In = ParameterLocation.Path,
                     Description = "ID of pet that needs to be updated",
                     Required = true,
-                    Schema = new OpenApiSchema
+                    Schema = new()
                     {
-                        Type = "string"
+                        Type = JsonSchemaType.String
                     }
                 }
             },
@@ -67,9 +71,9 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
                         In = ParameterLocation.Path,
                         Description = "ID of pet that needs to be updated",
                         Required = true,
-                        Schema = new OpenApiSchema
+                        Schema = new()
                         {
-                            Type = "string"
+                            Type = JsonSchemaType.String
                         }
                     }
                 },
@@ -79,19 +83,20 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
                     {
                         ["application/x-www-form-urlencoded"] = new OpenApiMediaType
                         {
-                            Schema = new OpenApiSchema
+                            Schema = new()
                             {
+                                Type = JsonSchemaType.Object,
                                 Properties =
                                 {
-                                    ["name"] = new OpenApiSchema
+                                    ["name"] = new()
                                     {
                                         Description = "Updated name of the pet",
-                                        Type = "string"
+                                        Type = JsonSchemaType.String
                                     },
-                                    ["status"] = new OpenApiSchema
+                                    ["status"] = new()
                                     {
                                         Description = "Updated status of the pet",
-                                        Type = "string"
+                                        Type = JsonSchemaType.String
                                     }
                                 },
                                 Required = new HashSet<string>
@@ -102,19 +107,20 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
                         },
                         ["multipart/form-data"] = new OpenApiMediaType
                         {
-                            Schema = new OpenApiSchema
+                             Schema = new()
                             {
+                                Type = JsonSchemaType.Object,
                                 Properties =
                                 {
-                                    ["name"] = new OpenApiSchema
+                                    ["name"] = new()
                                     {
                                         Description = "Updated name of the pet",
-                                        Type = "string"
+                                        Type = JsonSchemaType.String
                                     },
-                                    ["status"] = new OpenApiSchema
+                                    ["status"] = new()
                                     {
                                         Description = "Updated status of the pet",
-                                        Type = "string"
+                                        Type = JsonSchemaType.String
                                     }
                                 },
                                 Required = new HashSet<string>
@@ -162,9 +168,9 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
                     In = ParameterLocation.Path,
                     Description = "ID of pet that needs to be updated",
                     Required = true,
-                    Schema = new OpenApiSchema
+                    Schema = new()
                     {
-                        Type = "string"
+                        Type = JsonSchemaType.String
                     }
                 },
             },
@@ -176,14 +182,14 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
                 {
                     ["application/json"] = new OpenApiMediaType
                     {
-                        Schema = new OpenApiSchema
+                        Schema = new()
                         {
-                            Type = "object"
+                            Type = JsonSchemaType.Object
                         }
                     }
                 },
-                Extensions = { 
-                    [OpenApiConstants.BodyName] = new OpenApiString("petObject") 
+                Extensions = {
+                    [OpenApiConstants.BodyName] = new OpenApiAny("petObject")
                 }
             },
             Responses = new OpenApiResponses
@@ -246,41 +252,6 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
         }
 
         [Fact]
-        public void ParseOperationWithFormDataShouldSucceed()
-        {
-            // Arrange
-            MapNode node;
-            using (var stream = Resources.GetStream(Path.Combine(SampleFolderPath, "operationWithFormData.yaml")))
-            {
-                node = TestHelper.CreateYamlMapNode(stream);
-            }
-
-            // Act
-            var operation = OpenApiV2Deserializer.LoadOperation(node);
-
-            // Assert
-            operation.Should().BeEquivalentTo(_operationWithFormData);
-        }
-
-        [Fact]
-        public void ParseOperationWithFormDataTwiceShouldYieldSameObject()
-        {
-            // Arrange
-            MapNode node;
-            using (var stream = new MemoryStream(
-                Encoding.Default.GetBytes(_operationWithFormData.SerializeAsYaml(OpenApiSpecVersion.OpenApi2_0))))
-            {
-                node = TestHelper.CreateYamlMapNode(stream);
-            }
-
-            // Act
-            var operation = OpenApiV2Deserializer.LoadOperation(node);
-
-            // Assert
-            operation.Should().BeEquivalentTo(_operationWithFormData);
-        }
-
-        [Fact]
         public void ParseOperationWithBodyShouldSucceed()
         {
             // Arrange
@@ -294,7 +265,7 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
             var operation = OpenApiV2Deserializer.LoadOperation(node);
 
             // Assert
-            operation.Should().BeEquivalentTo(_operationWithBody);
+            operation.Should().BeEquivalentTo(_operationWithBody, options => options.IgnoringCyclicReferences());
         }
 
         [Fact]
@@ -312,7 +283,7 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
             var operation = OpenApiV2Deserializer.LoadOperation(node);
 
             // Assert
-            operation.Should().BeEquivalentTo(_operationWithBody);
+            operation.Should().BeEquivalentTo(_operationWithBody, options => options.IgnoringCyclicReferences());
         }
 
         [Fact]
@@ -341,30 +312,30 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
                             {
                                 ["application/json"] = new OpenApiMediaType()
                                 {
-                                    Schema = new OpenApiSchema()
+                                    Schema = new()
                                     {
-                                        Type = "array",
-                                        Items = new OpenApiSchema()
+                                        Type = JsonSchemaType.Array,
+                                        Items = new()
                                         {
-                                            Type = "number",
+                                            Type = JsonSchemaType.Number,
                                             Format = "float"
                                         }
                                     },
-                                    Example = new OpenApiArray()
+                                    Example = new JsonArray()
                                     {
-                                        new OpenApiFloat(5),
-                                        new OpenApiFloat(6),
-                                        new OpenApiFloat(7),
+                                        5.0,
+                                        6.0,
+                                        7.0
                                     }
                                 },
                                 ["application/xml"] = new OpenApiMediaType()
                                 {
-                                    Schema = new OpenApiSchema()
+                                    Schema = new()
                                     {
-                                        Type = "array",
-                                        Items = new OpenApiSchema()
+                                        Type = JsonSchemaType.Array,
+                                        Items = new()
                                         {
-                                            Type = "number",
+                                            Type = JsonSchemaType.Number,
                                             Format = "float"
                                         }
                                     }
@@ -372,8 +343,267 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
                             }
                         }}
                     }
-                }
-            );
+                }, options => options.IgnoringCyclicReferences()
+                .Excluding(o => o.Responses["200"].Content["application/json"].Example[0].Parent)
+                .Excluding(o => o.Responses["200"].Content["application/json"].Example[0].Root)
+                .Excluding(o => o.Responses["200"].Content["application/json"].Example[1].Parent)
+                .Excluding(o => o.Responses["200"].Content["application/json"].Example[1].Root)
+                .Excluding(o => o.Responses["200"].Content["application/json"].Example[2].Parent)
+                .Excluding(o => o.Responses["200"].Content["application/json"].Example[2].Root));
+        }
+
+        [Fact]
+        public void ParseOperationWithEmptyProducesArraySetsResponseSchemaIfExists()
+        {
+            // Arrange
+            MapNode node;
+            using var stream = Resources.GetStream(Path.Combine(SampleFolderPath, "operationWithEmptyProducesArrayInResponse.json"));
+            node = TestHelper.CreateYamlMapNode(stream);
+
+            // Act
+            var operation = OpenApiV2Deserializer.LoadOperation(node);
+            var expected = @"{
+  ""produces"": [
+    ""application/octet-stream""
+  ],
+  ""responses"": {
+    ""200"": {
+      ""description"": ""OK"",
+      ""schema"": {
+        ""type"": ""string"",
+        ""description"": ""The content of the file."",
+        ""format"": ""binary"",
+        ""x-ms-summary"": ""File Content""
+      }
+    }
+  }
+}";
+
+            var stringBuilder = new StringBuilder();
+            var jsonWriter = new OpenApiJsonWriter(new StringWriter(stringBuilder));
+            operation.SerializeAsV2(jsonWriter);
+
+            // Assert
+            var actual = stringBuilder.ToString();
+            actual.MakeLineBreaksEnvironmentNeutral().Should().BeEquivalentTo(expected.MakeLineBreaksEnvironmentNeutral());            
+        }
+
+        [Fact]
+        public void ParseOperationWithBodyAndEmptyConsumesSetsRequestBodySchemaIfExists()
+        {
+            // Arrange
+            MapNode node;
+            using var stream = Resources.GetStream(Path.Combine(SampleFolderPath, "operationWithBodyAndEmptyConsumes.yaml"));
+            node = TestHelper.CreateYamlMapNode(stream);
+
+            // Act
+            var operation = OpenApiV2Deserializer.LoadOperation(node);
+
+            // Assert
+            operation.Should().BeEquivalentTo(_operationWithBody, options => options.IgnoringCyclicReferences());
+        }
+
+        [Fact]
+        public void ParseV2ResponseWithExamplesExtensionWorks()
+        {            
+            // Arrange
+            MapNode node;
+            using (var stream = Resources.GetStream(Path.Combine(SampleFolderPath, "opWithResponseExamplesExtension.yaml")))
+            {
+                node = TestHelper.CreateYamlMapNode(stream);
+            }
+
+            // Act
+            var operation = OpenApiV2Deserializer.LoadOperation(node);
+            var actual = operation.SerializeAsYaml(OpenApiSpecVersion.OpenApi3_0);
+
+            // Assert
+            var expected = @"summary: Get all pets
+responses:
+  '200':
+    description: Successful response
+    content:
+      application/json:
+        schema:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              age:
+                type: integer
+        examples:
+          example1:
+            summary: Example - List of Pets
+            value:
+              - name: Buddy
+                age: 2
+              - name: Whiskers
+                age: 1
+          example2:
+            summary: Example - Playful Cat
+            value:
+              name: Whiskers
+              age: 1";
+
+            // Assert
+            actual = actual.MakeLineBreaksEnvironmentNeutral();
+            expected = expected.MakeLineBreaksEnvironmentNeutral();
+            actual.Should().Be(expected);
+        }
+
+        [Fact]
+        public void LoadV3ExamplesInResponseAsExtensionsWorks()
+        {
+            // Arrange
+            MapNode node;
+            using (var stream = Resources.GetStream(Path.Combine(SampleFolderPath, "v3OperationWithResponseExamples.yaml")))
+            {
+                node = TestHelper.CreateYamlMapNode(stream);
+            }
+
+            // Act
+            var operation = OpenApiV3Deserializer.LoadOperation(node);
+            var actual = operation.SerializeAsYaml(OpenApiSpecVersion.OpenApi2_0);
+
+            // Assert
+            var expected = @"summary: Get all pets
+produces:
+  - application/json
+responses:
+  '200':
+    description: Successful response
+    schema:
+      type: array
+      items:
+        type: object
+        properties:
+          name:
+            type: string
+          age:
+            type: integer
+    x-examples:
+      example1:
+        summary: Example - List of Pets
+        value:
+          - name: Buddy
+            age: 2
+          - name: Whiskers
+            age: 1
+      example2:
+        summary: Example - Playful Cat
+        value:
+          name: Whiskers
+          age: 1";
+
+            // Assert
+            actual = actual.MakeLineBreaksEnvironmentNeutral();
+            expected = expected.MakeLineBreaksEnvironmentNeutral();
+            actual.Should().Be(expected);
+        }
+
+        [Fact]
+        public void LoadV2OperationWithBodyParameterExamplesWorks()
+        {
+            // Arrange
+            MapNode node;
+            using (var stream = Resources.GetStream(Path.Combine(SampleFolderPath, "opWithBodyParameterExamples.yaml")))
+            {
+                node = TestHelper.CreateYamlMapNode(stream);
+            }
+
+            // Act
+            var operation = OpenApiV2Deserializer.LoadOperation(node);
+            var actual = operation.SerializeAsYaml(OpenApiSpecVersion.OpenApi3_0);
+
+            // Assert
+            var expected = @"summary: Get all pets
+requestBody:
+  content:
+    application/json:
+      schema:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            age:
+              type: integer
+      examples:
+        example1:
+          summary: Example - List of Pets
+          value:
+            - name: Buddy
+              age: 2
+            - name: Whiskers
+              age: 1
+        example2:
+          summary: Example - Playful Cat
+          value:
+            name: Whiskers
+            age: 1
+  required: true
+  x-bodyName: body
+responses: { }";
+
+            // Assert
+            actual = actual.MakeLineBreaksEnvironmentNeutral();
+            expected = expected.MakeLineBreaksEnvironmentNeutral();
+            actual.Should().Be(expected);
+        }
+
+        [Fact]
+        public void LoadV3ExamplesInRequestBodyParameterAsExtensionsWorks()
+        {
+            // Arrange
+            MapNode node;
+            using (var stream = Resources.GetStream(Path.Combine(SampleFolderPath, "v3OperationWithBodyParameterExamples.yaml")))
+            {
+                node = TestHelper.CreateYamlMapNode(stream);
+            }
+
+            // Act
+            var operation = OpenApiV3Deserializer.LoadOperation(node);
+            var actual = operation.SerializeAsYaml(OpenApiSpecVersion.OpenApi2_0);
+
+            // Assert
+            var expected = @"summary: Get all pets
+consumes:
+  - application/json
+parameters:
+  - in: body
+    name: body
+    required: true
+    schema:
+      type: array
+      items:
+        type: object
+        properties:
+          name:
+            type: string
+          age:
+            type: integer
+    x-examples:
+      example1:
+        summary: Example - List of Pets
+        value:
+          - name: Buddy
+            age: 2
+          - name: Whiskers
+            age: 1
+      example2:
+        summary: Example - Playful Cat
+        value:
+          name: Whiskers
+          age: 1
+responses: { }";
+
+            // Assert
+            actual = actual.MakeLineBreaksEnvironmentNeutral();
+            expected = expected.MakeLineBreaksEnvironmentNeutral();
+            actual.Should().Be(expected);
         }
     }
 }

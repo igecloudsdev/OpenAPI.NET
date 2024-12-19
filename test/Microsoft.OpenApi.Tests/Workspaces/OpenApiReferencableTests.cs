@@ -1,5 +1,5 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
 using System;
 using System.Collections.Generic;
@@ -12,13 +12,12 @@ using Xunit;
 
 namespace Microsoft.OpenApi.Tests.Workspaces
 {
-
     public class OpenApiReferencableTests
     {
-        private static readonly OpenApiCallback _callbackFragment = new OpenApiCallback();
-        private static readonly OpenApiExample _exampleFragment = new OpenApiExample();
-        private static readonly OpenApiLink _linkFragment = new OpenApiLink();
-        private static readonly OpenApiHeader _headerFragment = new OpenApiHeader()
+        private static readonly OpenApiCallback _callbackFragment = new();
+        private static readonly OpenApiExample _exampleFragment = new();
+        private static readonly OpenApiLink _linkFragment = new();
+        private static readonly OpenApiHeader _headerFragment = new()
         {
             Schema = new OpenApiSchema(),
             Examples = new Dictionary<string, OpenApiExample>
@@ -26,7 +25,7 @@ namespace Microsoft.OpenApi.Tests.Workspaces
                 { "example1", new OpenApiExample() }
             }
         };
-        private static readonly OpenApiParameter _parameterFragment = new OpenApiParameter
+        private static readonly OpenApiParameter _parameterFragment = new()
         {
             Schema = new OpenApiSchema(),
             Examples = new Dictionary<string, OpenApiExample>
@@ -34,8 +33,8 @@ namespace Microsoft.OpenApi.Tests.Workspaces
                 { "example1", new OpenApiExample() }
             }
         };
-        private static readonly OpenApiRequestBody _requestBodyFragment = new OpenApiRequestBody();
-        private static readonly OpenApiResponse _responseFragment = new OpenApiResponse()
+        private static readonly OpenApiRequestBody _requestBodyFragment = new();
+        private static readonly OpenApiResponse _responseFragment = new()
         {
             Headers = new Dictionary<string, OpenApiHeader>
             {
@@ -57,16 +56,13 @@ namespace Microsoft.OpenApi.Tests.Workspaces
             new object[] { _exampleFragment, "/", _exampleFragment },
             new object[] { _linkFragment, "/", _linkFragment },
             new object[] { _headerFragment, "/", _headerFragment },
-            new object[] { _headerFragment, "/schema", _headerFragment.Schema },
             new object[] { _headerFragment, "/examples/example1", _headerFragment.Examples["example1"] },
             new object[] { _parameterFragment, "/", _parameterFragment },
-            new object[] { _parameterFragment, "/schema", _parameterFragment.Schema },
             new object[] { _parameterFragment, "/examples/example1", _parameterFragment.Examples["example1"] },
             new object[] { _requestBodyFragment, "/", _requestBodyFragment },
             new object[] { _responseFragment, "/", _responseFragment },
             new object[] { _responseFragment, "/headers/header1", _responseFragment.Headers["header1"] },
             new object[] { _responseFragment, "/links/link1", _responseFragment.Links["link1"] },
-            new object[] { _schemaFragment, "/", _schemaFragment},
             new object[] { _securitySchemeFragment, "/", _securitySchemeFragment},
             new object[] { _tagFragment, "/", _tagFragment}
         };
@@ -79,7 +75,7 @@ namespace Microsoft.OpenApi.Tests.Workspaces
             IOpenApiElement expectedResolvedElement)
         {
             // Act
-            var actualResolvedElement = element.ResolveReference(new JsonPointer(jsonPointer));
+            var actualResolvedElement = element.ResolveReference(new(jsonPointer));
 
             // Assert
             Assert.Same(expectedResolvedElement, actualResolvedElement);
@@ -104,7 +100,6 @@ namespace Microsoft.OpenApi.Tests.Workspaces
             new object[] { _responseFragment, "/content" },
             new object[] { _responseFragment, "/content/" },
             new object[] { _responseFragment, "/content/a" }
-
         };
 
         [Theory]
@@ -112,7 +107,7 @@ namespace Microsoft.OpenApi.Tests.Workspaces
         public void ResolveReferenceShouldThrowOnInvalidReferenceId(IOpenApiReferenceable element, string jsonPointer)
         {
             // Act
-            Action resolveReference = () => element.ResolveReference(new JsonPointer(jsonPointer));
+            Action resolveReference = () => element.ResolveReference(new(jsonPointer));
 
             // Assert
             var exception = Assert.Throws<OpenApiException>(resolveReference);

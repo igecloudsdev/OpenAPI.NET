@@ -2,7 +2,6 @@
 // Licensed under the MIT license.
 
 using System;
-using System.Linq;
 
 namespace Microsoft.OpenApi.Hidi
 {
@@ -14,18 +13,30 @@ namespace Microsoft.OpenApi.Hidi
             {
                 throw new InvalidOperationException("Please provide a version");
             }
-            var res = value.Split('.', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+            // Split the version string by the dot
+            var versionSegments = value.Split('.', StringSplitOptions.RemoveEmptyEntries);
 
-            if (int.TryParse(res, out int result))
+            if (!int.TryParse(versionSegments[0], out var majorVersion)
+                || !int.TryParse(versionSegments[1], out var minorVersion))
             {
-
-                if (result >= 2 && result < 3)
-                {
-                    return OpenApiSpecVersion.OpenApi2_0;
-                }
+                throw new InvalidOperationException("Invalid version format. Please provide a valid OpenAPI version (e.g., 2.0, 3.0, 3.1).");
             }
 
-            return OpenApiSpecVersion.OpenApi3_0; // default
+            // Check for specific version matches
+            if (majorVersion == 2)
+            {
+                return OpenApiSpecVersion.OpenApi2_0;
+            }
+            else if (majorVersion == 3 && minorVersion == 0)
+            {
+                return OpenApiSpecVersion.OpenApi3_0;
+            }
+            else if (majorVersion == 3 && minorVersion == 1)
+            {
+                return OpenApiSpecVersion.OpenApi3_1;
+            }
+
+            return OpenApiSpecVersion.OpenApi3_1; // default
         }
     }
 }

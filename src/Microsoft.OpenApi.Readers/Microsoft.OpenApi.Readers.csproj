@@ -1,26 +1,15 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFrameworks>netstandard2.0</TargetFrameworks>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <PackageIconUrl>http://go.microsoft.com/fwlink/?LinkID=288890</PackageIconUrl>
-        <PackageProjectUrl>https://github.com/Microsoft/OpenAPI.NET</PackageProjectUrl>
-        <PackageLicenseExpression>MIT</PackageLicenseExpression>
-        <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-        <Authors>Microsoft</Authors>
-        <Company>Microsoft</Company>
-        <Title>Microsoft.OpenApi.Readers</Title>
-        <PackageId>Microsoft.OpenApi.Readers</PackageId>
-        <Version>1.6.6</Version>
+        <Version>2.0.0-preview3</Version>
         <Description>OpenAPI.NET Readers for JSON and YAML documents</Description>
-        <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
-        <PackageTags>OpenAPI .NET</PackageTags>
-        <RepositoryUrl>https://github.com/Microsoft/OpenAPI.NET</RepositoryUrl>
-        <PackageReleaseNotes>https://github.com/microsoft/OpenAPI.NET/releases</PackageReleaseNotes>
-        <AssemblyName>Microsoft.OpenApi.Readers</AssemblyName>
-        <RootNamespace>Microsoft.OpenApi.Readers</RootNamespace>
         <SignAssembly>true</SignAssembly>
         <!-- https://github.com/dotnet/sourcelink/blob/main/docs/README.md#embeduntrackedsources -->
         <EmbedUntrackedSources>true</EmbedUntrackedSources>
+        <NoWarn>NU5048</NoWarn>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
 
     <PropertyGroup>
@@ -28,13 +17,23 @@
         <AssemblyOriginatorKeyFile>..\Microsoft.OpenApi.snk</AssemblyOriginatorKeyFile>
     </PropertyGroup>
 
-    <!-- https://github.com/clairernovotny/DeterministicBuilds#deterministic-builds -->
-    <PropertyGroup Condition="'$(TF_BUILD)' == 'true'">
-        <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
-    </PropertyGroup>
+    <ItemGroup>
+      <Compile Remove="V31\**" />
+      <EmbeddedResource Remove="V31\**" />
+      <None Remove="V31\**" />
+    </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="SharpYaml" Version="2.1.0" />
+
+        <PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.12.19">
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+          <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+
+        <PackageReference Include="SharpYaml" Version="2.1.1" />
+        <PackageReference Include="System.Text.Json" Version="[8.0,)" />
+        <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-hh2w-p6rv-4g7w" />
+        <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-8g4q-xg66-9fp4" />
     </ItemGroup>
 
     <ItemGroup>
@@ -59,5 +58,9 @@
             <Generator>ResXFileCodeGenerator</Generator>
             <LastGenOutput>SRResource.Designer.cs</LastGenOutput>
         </EmbeddedResource>
+    </ItemGroup>
+    
+    <ItemGroup>
+        <None Include="../../README.md" Pack="true" PackagePath="" />
     </ItemGroup>
 </Project>

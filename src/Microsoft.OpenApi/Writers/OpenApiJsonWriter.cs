@@ -1,5 +1,5 @@
-﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT license.
 
 using System.IO;
 
@@ -42,7 +42,7 @@ namespace Microsoft.OpenApi.Writers
         /// <summary>
         /// Indicates whether or not the produced document will be written in a compact or pretty fashion.
         /// </summary>
-        private bool _produceTerseOutput = false;
+        private readonly bool _produceTerseOutput = false;
 
         /// <summary>
         /// Base Indentation Level.
@@ -59,7 +59,7 @@ namespace Microsoft.OpenApi.Writers
 
             var currentScope = StartScope(ScopeType.Object);
 
-            if (previousScope != null && previousScope.Type == ScopeType.Array)
+            if (previousScope is {Type: ScopeType.Array})
             {
                 currentScope.IsInArray = true;
 
@@ -110,7 +110,7 @@ namespace Microsoft.OpenApi.Writers
 
             var currentScope = StartScope(ScopeType.Array);
 
-            if (previousScope != null && previousScope.Type == ScopeType.Array)
+            if (previousScope is {Type: ScopeType.Array})
             {
                 currentScope.IsInArray = true;
 
@@ -250,6 +250,7 @@ namespace Microsoft.OpenApi.Writers
 
             base.WriteIndentation();
         }
+
 
         /// <summary>
         /// Writes a line terminator to the text string or stream.

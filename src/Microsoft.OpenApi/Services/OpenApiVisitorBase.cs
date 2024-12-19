@@ -1,9 +1,10 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Nodes;
 using Microsoft.OpenApi.Interfaces;
 using Microsoft.OpenApi.Models;
 
@@ -14,15 +15,15 @@ namespace Microsoft.OpenApi.Services
     /// </summary>
     public abstract class OpenApiVisitorBase
     {
-        private readonly Stack<string> _path = new Stack<string>();
+        private readonly Stack<string> _path = new();
 
         /// <summary>
         /// Properties available to identify context of where an object is within OpenAPI Document
         /// </summary>
-        public CurrentKeys CurrentKeys { get; } = new CurrentKeys();
+        public CurrentKeys CurrentKeys { get; } = new();
 
         /// <summary>
-        /// Allow Rule to indicate validation error occured at a deeper context level.  
+        /// Allow Rule to indicate validation error occured at a deeper context level.
         /// </summary>
         /// <param name="segment">Identifier for context</param>
         public virtual void Enter(string segment)
@@ -31,7 +32,7 @@ namespace Microsoft.OpenApi.Services
         }
 
         /// <summary>
-        /// Exit from path context elevel.  Enter and Exit calls should be matched.
+        /// Exit from path context level.  Enter and Exit calls should be matched.
         /// </summary>
         public virtual void Exit()
         {
@@ -41,18 +42,20 @@ namespace Microsoft.OpenApi.Services
         /// <summary>
         /// Pointer to source of validation error in document
         /// </summary>
-        public string PathString
-        {
-            get
-            {
-                return "#/" + String.Join("/", _path.Reverse());
-            }
-        }
+        public string PathString { get => "#/" + String.Join("/", _path.Reverse()); }
 
         /// <summary>
         /// Visits <see cref="OpenApiDocument"/>
         /// </summary>
         public virtual void Visit(OpenApiDocument doc)
+        {
+        }
+
+        /// <summary>
+        /// Visits <see cref="JsonNode"/>
+        /// </summary>
+        /// <param name="node"></param>
+        public virtual void Visit(JsonNode node)
         {
         }
 
@@ -69,7 +72,6 @@ namespace Microsoft.OpenApi.Services
         public virtual void Visit(OpenApiContact contact)
         {
         }
-
 
         /// <summary>
         /// Visits <see cref="OpenApiLicense"/>
@@ -96,6 +98,13 @@ namespace Microsoft.OpenApi.Services
         /// Visits <see cref="OpenApiPaths"/>
         /// </summary>
         public virtual void Visit(OpenApiPaths paths)
+        {
+        }
+
+        /// <summary>
+        /// Visits Webhooks>
+        /// </summary>
+        public virtual void Visit(IDictionary<string, OpenApiPathItem> webhooks)
         {
         }
 
@@ -147,7 +156,6 @@ namespace Microsoft.OpenApi.Services
         public virtual void Visit(OpenApiRequestBody requestBody)
         {
         }
-
 
         /// <summary>
         /// Visits headers.
@@ -212,7 +220,6 @@ namespace Microsoft.OpenApi.Services
         {
         }
 
-
         /// <summary>
         /// Visits <see cref="OpenApiComponents"/>
         /// </summary>
@@ -258,7 +265,7 @@ namespace Microsoft.OpenApi.Services
         /// <summary>
         /// Visits <see cref="OpenApiHeader"/>
         /// </summary>
-        public virtual void Visit(OpenApiHeader tag)
+        public virtual void Visit(OpenApiHeader header)
         {
         }
 

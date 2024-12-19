@@ -1,5 +1,5 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
 using System.Collections.Generic;
 using System.Linq;
@@ -24,6 +24,12 @@ namespace Microsoft.OpenApi.Extensions
         public static IEnumerable<OpenApiError> Validate(this IOpenApiElement element, ValidationRuleSet ruleSet)
         {
             var validator = new OpenApiValidator(ruleSet);
+
+            if (element is OpenApiDocument doc)
+            {
+                validator.HostDocument = doc;
+            }
+            
             var walker = new OpenApiWalker(validator);
             walker.Walk(element);
             return validator.Errors.Cast<OpenApiError>().Union(validator.Warnings);

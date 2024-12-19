@@ -1,11 +1,6 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.OpenApi.Exceptions;
 using Microsoft.OpenApi.Models;
 
@@ -16,7 +11,10 @@ namespace Microsoft.OpenApi.Services
     /// </summary>
     public class OpenApiReferenceError : OpenApiError
     {
-        private OpenApiReference _reference;
+        /// <summary>
+        /// The reference that caused the error.
+        /// </summary>
+        public readonly OpenApiReference Reference;
         /// <summary>
         /// Initializes the <see cref="OpenApiError"/> class using the message and pointer from the given exception.
         /// </summary>
@@ -31,7 +29,7 @@ namespace Microsoft.OpenApi.Services
         /// <param name="message"></param>
         public OpenApiReferenceError(OpenApiReference reference, string message) : base("", message)
         {
-            _reference = reference;
+            Reference = reference;
         }
     }
 }

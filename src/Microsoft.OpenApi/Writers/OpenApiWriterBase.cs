@@ -1,12 +1,17 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text.Json;
+using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Exceptions;
+using Microsoft.OpenApi.Extensions;
 using Microsoft.OpenApi.Models;
 using Microsoft.OpenApi.Properties;
+using Microsoft.OpenApi.Services;
 
 namespace Microsoft.OpenApi.Writers
 {
@@ -15,14 +20,14 @@ namespace Microsoft.OpenApi.Writers
     /// </summary>
     public abstract class OpenApiWriterBase : IOpenApiWriter
     {
-        
+
         /// <summary>
         /// Settings for controlling how the OpenAPI document will be written out.
         /// </summary>
         public OpenApiWriterSettings Settings { get; set; }
 
         /// <summary>
-        /// The indentation string to prepand to each line for each indentation level.
+        /// The indentation string to prepend to each line for each indentation level.
         /// </summary>
         protected const string IndentationString = "  ";
 
@@ -49,15 +54,15 @@ namespace Microsoft.OpenApi.Writers
         /// </summary>
         /// <param name="textWriter"></param>
         /// <param name="settings"></param>
-        public OpenApiWriterBase(TextWriter textWriter, OpenApiWriterSettings settings) 
+        public OpenApiWriterBase(TextWriter textWriter, OpenApiWriterSettings settings)
         {
             Writer = textWriter;
             Writer.NewLine = "\n";
 
-            Scopes = new Stack<Scope>();
+            Scopes = new();
             if (settings == null)
             {
-                settings = new OpenApiWriterSettings();
+                settings = new();
             }
             Settings = settings;
         }
@@ -227,6 +232,10 @@ namespace Microsoft.OpenApi.Writers
             {
                 WriteValue((int)value);
             }
+            else if (type == typeof(uint) || type == typeof(uint?))
+            {
+                WriteValue((uint)value);
+            }
             else if (type == typeof(long) || type == typeof(long?))
             {
                 WriteValue((long)value);
@@ -299,7 +308,7 @@ namespace Microsoft.OpenApi.Writers
                 Writer.Write(IndentationString);
             }
         }
-
+        
         /// <summary>
         /// Get current scope.
         /// </summary>
@@ -393,10 +402,7 @@ namespace Microsoft.OpenApi.Writers
         /// <param name="name">property name</param>
         protected void VerifyCanWritePropertyName(string name)
         {
-            if (name == null)
-            {
-                throw Error.ArgumentNull(nameof(name));
-            }
+            Utils.CheckArgumentNull(name);
 
             if (Scopes.Count == 0)
             {
@@ -409,6 +415,29 @@ namespace Microsoft.OpenApi.Writers
                 throw new OpenApiWriterException(
                     string.Format(SRResource.ObjectScopeNeededForPropertyNameWriting, name));
             }
+        }
+
+        /// <inheritdoc/>
+        public void WriteV2Examples(IOpenApiWriter writer, OpenApiExample example, OpenApiSpecVersion version)
+        {
+            writer.WriteStartObject();
+
+            // summary
+            writer.WriteProperty(OpenApiConstants.Summary, example.Summary);
+
+            // description
+            writer.WriteProperty(OpenApiConstants.Description, example.Description);
+
+            // value
+            writer.WriteOptionalObject(OpenApiConstants.Value, example.Value, (w, v) => w.WriteAny(v));
+
+            // externalValue
+            writer.WriteProperty(OpenApiConstants.ExternalValue, example.ExternalValue);
+
+            // extensions
+            writer.WriteExtensions(example.Extensions, version);
+
+            writer.WriteEndObject();
         }
     }
 }

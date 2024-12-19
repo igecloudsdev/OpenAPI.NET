@@ -3,9 +3,11 @@
 
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi.Readers;
 using Microsoft.OpenApi.Services;
 using Microsoft.OpenApi.Tests.UtilityFiles;
 using Moq;
+using SharpYaml.Tokens;
 using Xunit;
 
 namespace Microsoft.OpenApi.Hidi.Tests
@@ -19,7 +21,7 @@ namespace Microsoft.OpenApi.Hidi.Tests
         public OpenApiFilterServiceTests()
         {
             _openApiDocumentMock = OpenApiDocumentMock.CreateOpenApiDocument();
-            _mockLogger = new Mock<ILogger<OpenApiFilterServiceTests>>();
+            _mockLogger = new();
             _logger = _mockLogger.Object;
         }
 
@@ -35,7 +37,7 @@ namespace Microsoft.OpenApi.Hidi.Tests
         [InlineData(null, "users.user", 2)]
         [InlineData(null, "applications.application", 1)]
         [InlineData(null, "reports.Functions", 2)]
-        public void ReturnFilteredOpenApiDocumentBasedOnOperationIdsAndTags(string operationIds, string tags, int expectedPathCount)
+        public void ReturnFilteredOpenApiDocumentBasedOnOperationIdsAndTags(string? operationIds, string? tags, int expectedPathCount)
         {
             // Act
             var predicate = OpenApiFilterService.CreatePredicate(operationIds, tags);
@@ -70,14 +72,15 @@ namespace Microsoft.OpenApi.Hidi.Tests
         [Fact]
         public void TestPredicateFiltersUsingRelativeRequestUrls()
         {
-            var openApiDocument = new OpenApiDocument()
+            var openApiDocument = new OpenApiDocument
             {
                 Info = new() { Title = "Test", Version = "1.0" },
-                Servers = new List<OpenApiServer>() { new() { Url = "https://localhost/" } },
+                Servers = new List<OpenApiServer> { new() { Url = "https://localhost/" } },
                 Paths = new()
                 {
                     {"/foo", new() {
-                        Operations = new Dictionary<OperationType, OpenApiOperation>() {
+                        Operations = new Dictionary<OperationType, OpenApiOperation>
+                        {
                             { OperationType.Get, new() },
                             { OperationType.Patch, new() },
                             { OperationType.Post, new() }
@@ -102,6 +105,56 @@ namespace Microsoft.OpenApi.Hidi.Tests
             Assert.False(predicate("/foo", OperationType.Patch, null));
         }
 
+        [Fact]
+        public void CreateFilteredDocumentUsingPredicateFromRequestUrl()
+        {
+            // Arrange
+            var openApiDocument = new OpenApiDocument
+            {
+                Info = new() { Title = "Test", Version = "1.0" },
+                Servers = new List<OpenApiServer> { new() { Url = "https://localhost/" } },
+                Paths = new()
+                {
+                    ["/test/{id}"] = new()
+                    {
+                        Operations = new Dictionary<OperationType, OpenApiOperation>
+                        {
+                            { OperationType.Get, new() },
+                            { OperationType.Patch, new() }
+                        },
+                        Parameters = new List<OpenApiParameter>
+                        {
+                            new()
+                            {
+                                Name = "id",
+                                In = ParameterLocation.Path,
+                                Required = true,
+                                Schema = new()
+                                {
+                                    Type = JsonSchemaType.String
+                                }
+                            }
+                        }
+                    }
+
+
+                }
+            };
+
+            var requestUrls = new Dictionary<string, List<string>>
+            {
+                    {"/test/{id}", new List<string> {"GET","PATCH"}}
+            };
+
+            // Act
+            var predicate = OpenApiFilterService.CreatePredicate(requestUrls: requestUrls, source: openApiDocument);
+            var subsetDoc = OpenApiFilterService.CreateFilteredDocument(openApiDocument, predicate);
+
+            // Assert that there's only 1 parameter in the subset document
+            Assert.NotNull(subsetDoc);
+            Assert.NotEmpty(subsetDoc.Paths);
+            Assert.Single(subsetDoc.Paths.First().Value.Parameters);
+        }
 
         [Fact]
         public void ShouldParseNestedPostmanCollection()
@@ -170,10 +223,40 @@ namespace Microsoft.OpenApi.Hidi.Tests
             Assert.Equal("Cannot specify both operationIds and tags at the same time.", message2);
         }
 
+        [Fact]
+        public void CopiesOverAllReferencedComponentsToTheSubsetDocumentCorrectly()
+        {
+            // Arrange
+            var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "UtilityFiles", "docWithReusableHeadersAndExamples.yaml");
+            var operationIds = "getItems";
+
+            // Act
+            using var stream = File.OpenRead(filePath);
+            var doc = OpenApiDocument.Load(stream, "yaml").Document;
+            
+            var predicate = OpenApiFilterService.CreatePredicate(operationIds: operationIds);
+            var subsetOpenApiDocument = OpenApiFilterService.CreateFilteredDocument(doc, predicate);
+
+            var response = subsetOpenApiDocument.Paths["/items"].Operations[OperationType.Get]?.Responses?["200"];
+            var responseHeader = response?.Headers["x-custom-header"];
+            var mediaTypeExample = response?.Content["application/json"]?.Examples?.First().Value;
+            var targetHeaders = subsetOpenApiDocument.Components?.Headers;
+            var targetExamples = subsetOpenApiDocument.Components?.Examples;
+
+            // Assert
+            Assert.Same(doc.Servers, subsetOpenApiDocument.Servers);
+            Assert.False(responseHeader?.UnresolvedReference);
+            Assert.False(mediaTypeExample?.UnresolvedReference);
+            Assert.NotNull(targetHeaders);
+            Assert.Single(targetHeaders);
+            Assert.NotNull(targetExamples);
+            Assert.Single(targetExamples);
+        }
+
         [Theory]
         [InlineData("reports.getTeamsUserActivityUserDetail-a3f1", null)]
         [InlineData(null, "reports.Functions")]
-        public void ReturnsPathParametersOnSlicingBasedOnOperationIdsOrTags(string operationIds, string tags)
+        public void ReturnsPathParametersOnSlicingBasedOnOperationIdsOrTags(string? operationIds, string? tags)
         {
             // Act
             var predicate = OpenApiFilterService.CreatePredicate(operationIds, tags);
@@ -183,7 +266,7 @@ namespace Microsoft.OpenApi.Hidi.Tests
             foreach (var pathItem in subsetOpenApiDocument.Paths)
             {
                 Assert.True(pathItem.Value.Parameters.Any());
-                Assert.Equal(1, pathItem.Value.Parameters.Count);
+                Assert.Single(pathItem.Value.Parameters);
             }
         }
     }

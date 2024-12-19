@@ -1,7 +1,6 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
-using System;
 using System.Collections.Generic;
 using FluentAssertions;
 using Microsoft.OpenApi.Any;
@@ -15,19 +14,25 @@ namespace Microsoft.OpenApi.Tests.Models
     [Collection("DefaultSettings")]
     public class OpenApiLicenseTests
     {
-        public static OpenApiLicense BasicLicense = new OpenApiLicense
+        public static OpenApiLicense BasicLicense = new()
         {
             Name = "Apache 2.0"
         };
 
-        public static OpenApiLicense AdvanceLicense = new OpenApiLicense
+        public static OpenApiLicense AdvanceLicense = new()
         {
             Name = "Apache 2.0",
-            Url = new Uri("http://www.apache.org/licenses/LICENSE-2.0.html"),
+            Url = new("http://www.apache.org/licenses/LICENSE-2.0.html"),
             Extensions = new Dictionary<string, IOpenApiExtension>
             {
-                {"x-copyright", new OpenApiString("Abc")}
+                {"x-copyright", new OpenApiAny("Abc")}
             }
+        };
+
+        public static OpenApiLicense LicenseWithIdentifier = new OpenApiLicense
+        {
+            Name = "Apache 2.0",
+            Identifier = "Apache-2.0"
         };
 
         [Theory]
@@ -37,9 +42,11 @@ namespace Microsoft.OpenApi.Tests.Models
         {
             // Arrange
             var expected =
-                @"{
-  ""name"": ""Apache 2.0""
-}";
+                """
+                {
+                  "name": "Apache 2.0"
+                }
+                """;
 
             // Act
             var actual = BasicLicense.SerializeAsJson(version);
@@ -74,11 +81,13 @@ namespace Microsoft.OpenApi.Tests.Models
         {
             // Arrange
             var expected =
-                @"{
-  ""name"": ""Apache 2.0"",
-  ""url"": ""http://www.apache.org/licenses/LICENSE-2.0.html"",
-  ""x-copyright"": ""Abc""
-}";
+                """
+                {
+                  "name": "Apache 2.0",
+                  "url": "http://www.apache.org/licenses/LICENSE-2.0.html",
+                  "x-copyright": "Abc"
+                }
+                """;
 
             // Act
             var actual = AdvanceLicense.SerializeAsJson(version);
@@ -96,9 +105,11 @@ namespace Microsoft.OpenApi.Tests.Models
         {
             // Arrange
             var expected =
-                @"name: Apache 2.0
-url: http://www.apache.org/licenses/LICENSE-2.0.html
-x-copyright: Abc";
+                """
+                name: Apache 2.0
+                url: http://www.apache.org/licenses/LICENSE-2.0.html
+                x-copyright: Abc
+                """;
 
             // Act
             var actual = AdvanceLicense.SerializeAsYaml(version);
@@ -117,11 +128,42 @@ x-copyright: Abc";
 
             // Act
             licenseCopy.Name = "";
-            licenseCopy.Url = new Uri("https://exampleCopy.com");
+            licenseCopy.Url = new("https://exampleCopy.com");
 
             // Assert
             Assert.NotEqual(AdvanceLicense.Name, licenseCopy.Name);
             Assert.NotEqual(AdvanceLicense.Url, licenseCopy.Url);
+        }
+
+        [Fact]
+        public void SerializeLicenseWithIdentifierAsJsonWorks()
+        {
+            // Arrange
+            var expected =
+                @"{
+  ""name"": ""Apache 2.0"",
+  ""identifier"": ""Apache-2.0""
+}";
+
+            // Act
+            var actual = LicenseWithIdentifier.SerializeAsJson(OpenApiSpecVersion.OpenApi3_1);
+
+            // Assert
+            Assert.Equal(expected.MakeLineBreaksEnvironmentNeutral(), actual.MakeLineBreaksEnvironmentNeutral());
+        }
+
+        [Fact]
+        public void SerializeLicenseWithIdentifierAsYamlWorks()
+        {
+            // Arrange
+            var expected = @"name: Apache 2.0
+identifier: Apache-2.0";
+
+            // Act
+            var actual = LicenseWithIdentifier.SerializeAsYaml(OpenApiSpecVersion.OpenApi3_1);
+
+            // Assert
+            Assert.Equal(expected.MakeLineBreaksEnvironmentNeutral(), actual.MakeLineBreaksEnvironmentNeutral());
         }
     }
 }

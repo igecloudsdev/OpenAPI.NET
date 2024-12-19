@@ -1,9 +1,8 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
 using System;
 using System.Collections.Generic;
-using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Interfaces;
 using Microsoft.OpenApi.Writers;
 
@@ -49,7 +48,7 @@ namespace Microsoft.OpenApi.Models
         /// <summary>
         /// Parameterless constructor
         /// </summary>
-        public OpenApiXml() {}
+        public OpenApiXml() { }
 
         /// <summary>
         /// Initializes a copy of an <see cref="OpenApiXml"/> object
@@ -62,6 +61,14 @@ namespace Microsoft.OpenApi.Models
             Attribute = xml?.Attribute ?? Attribute;
             Wrapped = xml?.Wrapped ?? Wrapped;
             Extensions = xml?.Extensions != null ? new Dictionary<string, IOpenApiExtension>(xml.Extensions) : null;
+        }
+
+        /// <summary>
+        /// Serialize <see cref="OpenApiXml"/> to Open Api v3.0
+        /// </summary>
+        public void SerializeAsV31(IOpenApiWriter writer)
+        {
+            Write(writer, OpenApiSpecVersion.OpenApi3_1);
         }
 
         /// <summary>
@@ -82,10 +89,7 @@ namespace Microsoft.OpenApi.Models
 
         private void Write(IOpenApiWriter writer, OpenApiSpecVersion specVersion)
         {
-            if (writer == null)
-            {
-                throw Error.ArgumentNull(nameof(writer));
-            }
+            Utils.CheckArgumentNull(writer);;
 
             writer.WriteStartObject();
 

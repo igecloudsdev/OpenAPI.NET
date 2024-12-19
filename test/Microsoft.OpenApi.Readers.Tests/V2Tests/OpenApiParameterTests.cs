@@ -1,13 +1,13 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
-using System.Collections.Generic;
 using System.IO;
 using FluentAssertions;
+using FluentAssertions.Equivalency;
 using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
-using Microsoft.OpenApi.Readers.ParseNodes;
-using Microsoft.OpenApi.Readers.V2;
+using Microsoft.OpenApi.Reader.ParseNodes;
+using Microsoft.OpenApi.Reader.V2;
 using Xunit;
 
 namespace Microsoft.OpenApi.Readers.Tests.V2Tests
@@ -57,9 +57,9 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
                     Name = "username",
                     Description = "username to fetch",
                     Required = true,
-                    Schema = new OpenApiSchema
+                    Schema = new()
                     {
-                        Type = "string"
+                        Type = JsonSchemaType.String
                     }
                 });
         }
@@ -85,139 +85,16 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
                     Name = "id",
                     Description = "ID of the object to fetch",
                     Required = false,
-                    Schema = new OpenApiSchema
+                    Schema = new()
                     {
-                        Type = "array",
-                        Items = new OpenApiSchema
+                        Type = JsonSchemaType.Array,
+                        Items = new()
                         {
-                            Type = "string"
+                            Type = JsonSchemaType.String
                         }
                     },
                     Style = ParameterStyle.Form,
                     Explode = true
-                });
-        }
-
-        [Fact]
-        public void ParseFormDataParameterShouldSucceed()
-        {
-            // Arrange
-            MapNode node;
-            using (var stream = Resources.GetStream(Path.Combine(SampleFolderPath, "formDataParameter.yaml")))
-            {
-                node = TestHelper.CreateYamlMapNode(stream);
-            }
-
-            // Act
-            var parameter = OpenApiV2Deserializer.LoadParameter(node);
-
-            // Assert
-            // Form data parameter is currently not translated via LoadParameter.
-            // This design may be revisited and this unit test may likely change.
-            parameter.Should().BeNull();
-        }
-
-        [Fact]
-        public void ParseHeaderParameterShouldSucceed()
-        {
-            // Arrange
-            MapNode node;
-            using (var stream = Resources.GetStream(Path.Combine(SampleFolderPath, "headerParameter.yaml")))
-            {
-                node = TestHelper.CreateYamlMapNode(stream);
-            }
-
-            // Act
-            var parameter = OpenApiV2Deserializer.LoadParameter(node);
-
-            // Assert
-            parameter.Should().BeEquivalentTo(
-                new OpenApiParameter
-                {
-                    In = ParameterLocation.Header,
-                    Name = "token",
-                    Description = "token to be passed as a header",
-                    Required = true,
-                    Style = ParameterStyle.Simple,
-
-                    Schema = new OpenApiSchema
-                    {
-                        Type = "array",
-                        Items = new OpenApiSchema
-                        {
-                            Type = "integer",
-                            Format = "int64",
-                            Enum = new List<IOpenApiAny>
-                            {
-                                new OpenApiLong(1),
-                                new OpenApiLong(2),
-                                new OpenApiLong(3),
-                                new OpenApiLong(4),
-                            }
-                        },
-                        Default = new OpenApiArray() {
-                            new OpenApiLong(1),
-                            new OpenApiLong(2)
-                        },
-                        Enum = new List<IOpenApiAny>
-                        {
-                            new OpenApiArray() { new OpenApiLong(1), new OpenApiLong(2) },
-                            new OpenApiArray() { new OpenApiLong(2), new OpenApiLong(3) },
-                            new OpenApiArray() { new OpenApiLong(3), new OpenApiLong(4) }
-                        }
-                    }
-                });
-        }
-
-        [Fact]
-        public void ParseHeaderParameterWithIncorrectDataTypeShouldSucceed()
-        {
-            // Arrange
-            MapNode node;
-            using (var stream = Resources.GetStream(Path.Combine(SampleFolderPath, "headerParameterWithIncorrectDataType.yaml")))
-            {
-                node = TestHelper.CreateYamlMapNode(stream);
-            }
-
-            // Act
-            var parameter = OpenApiV2Deserializer.LoadParameter(node);
-
-            // Assert
-            parameter.Should().BeEquivalentTo(
-                new OpenApiParameter
-                {
-                    In = ParameterLocation.Header,
-                    Name = "token",
-                    Description = "token to be passed as a header",
-                    Required = true,
-                    Style = ParameterStyle.Simple,
-
-                    Schema = new OpenApiSchema
-                    {
-                        Type = "array",
-                        Items = new OpenApiSchema
-                        {
-                            Type = "string",
-                            Format = "date-time",
-                            Enum = new List<IOpenApiAny>
-                            {
-                                new OpenApiString("1"),
-                                new OpenApiString("2"),
-                                new OpenApiString("3"),
-                                new OpenApiString("4"),
-                            }
-                        },
-                        Default = new OpenApiArray() {
-                            new OpenApiString("1"),
-                            new OpenApiString("2")
-                        },
-                        Enum = new List<IOpenApiAny>
-                        {
-                            new OpenApiArray() { new OpenApiString("1"), new OpenApiString("2") },
-                            new OpenApiArray() { new OpenApiString("2"), new OpenApiString("3") },
-                            new OpenApiArray() { new OpenApiString("3"), new OpenApiString("4") }
-                        }
-                    }
                 });
         }
 
@@ -242,9 +119,9 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
                     Name = "username",
                     Description = "username to fetch",
                     Required = true,
-                    Schema = new OpenApiSchema
+                    Schema = new()
                     {
-                        Type = "string"
+                        Type = JsonSchemaType.String
                     }
                 });
         }
@@ -270,9 +147,9 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
                     Name = "username",
                     Description = "username to fetch",
                     Required = true,
-                    Schema = new OpenApiSchema
+                    Schema = new()
                     {
-                        Type = "string"
+                        Type = JsonSchemaType.String
                     }
                 });
         }
@@ -322,9 +199,9 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
                     Name = "username",
                     Description = "username to fetch",
                     Required = true,
-                    Schema = new OpenApiSchema
+                    Schema = new()
                     {
-                        Type = "string"
+                        Type = JsonSchemaType.String
                     }
                 });
         }
@@ -350,13 +227,13 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
                     Name = "username",
                     Description = "username to fetch",
                     Required = true,
-                    Schema = new OpenApiSchema
+                    Schema = new()
                     {
-                        Type = "number",
+                        Type = JsonSchemaType.Number,
                         Format = "float",
-                        Default = new OpenApiFloat(5)
+                        Default = new OpenApiAny(5).Node
                     }
-                });
+                }, options => options.IgnoringCyclicReferences().Excluding(x => x.Schema.Default.Parent));
         }
 
         [Fact]
@@ -371,27 +248,30 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
 
             // Act
             var parameter = OpenApiV2Deserializer.LoadParameter(node);
+            var expected = new OpenApiParameter
+            {
+                In = ParameterLocation.Path,
+                Name = "username",
+                Description = "username to fetch",
+                Required = true,
+                Schema = new()
+                {
+                    Type = JsonSchemaType.Number,
+                    Format = "float",
+                    Enum =
+                        {
+                            new OpenApiAny(7).Node,
+                            new OpenApiAny(8).Node,
+                            new OpenApiAny(9).Node
+                        }
+                }
+            };
 
             // Assert
-            parameter.Should().BeEquivalentTo(
-                new OpenApiParameter
-                {
-                    In = ParameterLocation.Path,
-                    Name = "username",
-                    Description = "username to fetch",
-                    Required = true,
-                    Schema = new OpenApiSchema
-                    {
-                        Type = "number",
-                        Format = "float",
-                        Enum =
-                        {
-                            new OpenApiFloat(7),
-                            new OpenApiFloat(8),
-                            new OpenApiFloat(9)
-                        }
-                    }
-                });
+            parameter.Should().BeEquivalentTo(expected, options => options
+                                .IgnoringCyclicReferences()
+                                .Excluding((IMemberInfo memberInfo) =>
+                                    memberInfo.Path.EndsWith("Parent")));
         }
     }
 }

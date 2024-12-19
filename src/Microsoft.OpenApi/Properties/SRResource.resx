@@ -139,7 +139,7 @@
     <value>Invalid Reference identifier '{0}'.</value>
   </data>
   <data name="InvalidReferenceType" xml:space="preserve">
-    <value>Invalid Reference Type.</value>
+    <value>Invalid Reference Type '{0}'.</value>
   </data>
   <data name="LocalReferenceRequiresType" xml:space="preserve">
     <value>Local reference must have type specified.</value>
@@ -210,6 +210,9 @@
   <data name="Validation_PathItemMustBeginWithSlash" xml:space="preserve">
     <value>The path item name '{0}' MUST begin with a slash.</value>
   </data>
+  <data name="Validation_PathSignatureMustBeUnique" xml:space="preserve">
+    <value>The path signature '{0}' MUST be unique.</value>
+  </data>
   <data name="Validation_RuleAddTwice" xml:space="preserve">
     <value>The same rule cannot be in the same rule set twice.</value>
   </data>
@@ -221,5 +224,11 @@
   </data>
   <data name="WorkspaceRequredForExternalReferenceResolution" xml:space="preserve">
     <value>OpenAPI document must be added to an OpenApiWorkspace to be able to resolve external references.</value>
+  </data>
+  <data name="ParseServerUrlDefaultValueNotAvailable" xml:space="preserve">
+      <value>Invalid server variable '{0}'. A value was not provided and no default value was provided.</value>
+  </data>
+  <data name="ParseServerUrlValueNotValid" xml:space="preserve">
+      <value>Value '{0}' is not a valid value for variable '{1}'. If an enum is provided, it should not be empty and the value provided should exist in the enum</value>
   </data>
 </root>

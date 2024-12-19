@@ -1,5 +1,5 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
 using System;
 
@@ -16,14 +16,44 @@ namespace Microsoft.OpenApi.Models
         public const string OpenApi = "openapi";
 
         /// <summary>
+        /// Field: Json
+        /// </summary>
+        public const string Json = "json";
+
+        /// <summary>
+        /// Field: Yaml
+        /// </summary>
+        public const string Yaml = "yaml";
+
+        /// <summary>
+        /// Field: Yml
+        /// </summary>
+        public const string Yml = "yml";
+
+        /// <summary>
         /// Field: Info
         /// </summary>
         public const string Info = "info";
 
         /// <summary>
+        /// Field: JsonSchemaDialect
+        /// </summary>
+        public const string JsonSchemaDialect = "jsonSchemaDialect";
+
+        /// <summary>
+        /// Field: Webhooks
+        /// </summary>
+        public const string Webhooks = "webhooks";
+
+        /// <summary>
         /// Field: Title
         /// </summary>
         public const string Title = "title";
+
+        /// <summary>
+        /// Field: Const
+        /// </summary>
+        public const string Const = "const";
 
         /// <summary>
         /// Field: Type
@@ -34,6 +64,66 @@ namespace Microsoft.OpenApi.Models
         /// Field: Format
         /// </summary>
         public const string Format = "format";
+
+        /// <summary>
+        /// Field: Schema
+        /// </summary>
+        public const string DollarSchema = "$schema";
+
+        /// <summary>
+        /// Field: Id
+        /// </summary>
+        public const string Id = "$id";
+
+        /// <summary>
+        /// Field: Comment
+        /// </summary>
+        public const string Comment = "$comment";
+
+        /// <summary>
+        /// Field: Vocabulary
+        /// </summary>
+        public const string Vocabulary = "$vocabulary";
+
+        /// <summary>
+        /// Field: DynamicRef
+        /// </summary>
+        public const string DynamicRef = "$dynamicRef";
+
+        /// <summary>
+        /// Field: DynamicAnchor
+        /// </summary>
+        public const string DynamicAnchor = "$dynamicAnchor";
+
+        /// <summary>
+        /// Field: RecursiveRef
+        /// </summary>
+        public const string RecursiveRef = "$recursiveRef";
+
+        /// <summary>
+        /// Field: RecursiveAnchor
+        /// </summary>
+        public const string RecursiveAnchor = "$recursiveAnchor";
+
+        /// <summary>
+        /// Field: Definitions
+        /// </summary>
+        public const string Defs = "$defs";
+
+        /// <summary>
+        /// Field: V31ExclusiveMaximum
+        /// </summary>
+        public const string V31ExclusiveMaximum = "exclusiveMaximum";
+
+        /// <summary>
+        /// Field: V31ExclusiveMinimum
+        /// </summary>
+        public const string V31ExclusiveMinimum = "exclusiveMinimum";
+
+        /// <summary>
+        /// Field: UnevaluatedProperties
+        /// </summary>
+        public const string UnevaluatedProperties = "unevaluatedProperties";
 
         /// <summary>
         /// Field: Version
@@ -74,6 +164,11 @@ namespace Microsoft.OpenApi.Models
         /// Field: Components
         /// </summary>
         public const string Components = "components";
+
+        /// <summary>
+        /// Field: PathItems
+        /// </summary>
+        public const string PathItems = "pathItems";
 
         /// <summary>
         /// Field: Security
@@ -119,6 +214,11 @@ namespace Microsoft.OpenApi.Models
         /// Field: Name
         /// </summary>
         public const string Name = "name";
+
+        /// <summary>
+        /// Field: Identifier
+        /// </summary>
+        public const string Identifier = "identifier";
 
         /// <summary>
         /// Field: Namespace
@@ -381,6 +481,16 @@ namespace Microsoft.OpenApi.Models
         public const string Properties = "properties";
 
         /// <summary>
+        /// Field: UnrecognizedKeywords
+        /// </summary>
+        public const string UnrecognizedKeywords = "unrecognizedKeywords";
+
+        /// <summary>
+        /// Field: Pattern Properties
+        /// </summary>
+        public const string PatternProperties = "patternProperties";
+
+        /// <summary>
         /// Field: AdditionalProperties
         /// </summary>
         public const string AdditionalProperties = "additionalProperties";
@@ -566,14 +676,49 @@ namespace Microsoft.OpenApi.Models
         public const string BodyName = "x-bodyName";
 
         /// <summary>
+        /// Field: Examples Extension
+        /// </summary>
+        public const string ExamplesExtension = "x-examples";
+
+        /// <summary>
         /// Field: version3_0_0
         /// </summary>
-        public static readonly Version version3_0_0 = new Version(3, 0, 0);
+        public static readonly Version version3_0_0 = new(3, 0, 0);
 
         /// <summary>
         /// Field: defaultUrl
         /// </summary>
-        public static readonly Uri defaultUrl = new Uri("http://localhost/");
+        public static readonly Uri defaultUrl = new("http://localhost/");
+
+        /// <summary>
+        /// Field: V3 JsonSchema Reference Uri
+        /// </summary>
+        public const string V3ReferenceUri = "https://registry/components/schemas/";
+
+        /// <summary>
+        /// Field: V2 JsonSchema Reference Uri
+        /// </summary>
+        public const string V2ReferenceUri = "https://registry/definitions/";
+
+        /// <summary>
+        /// The default registry uri for OpenApi documents and workspaces
+        /// </summary>
+        public const string BaseRegistryUri = "https://openapi.net/";
+
+        /// <summary>
+        /// The components path segment in a $ref value.
+        /// </summary>
+        public const string ComponentsSegment = "/components/";
+
+        /// <summary>
+        /// Field: Null
+        /// </summary>
+        public const string Null = "null";
+
+        /// <summary>
+        /// Field: Nullable extension
+        /// </summary>
+        public const string NullableExtension = "x-nullable";
 
         #region V2.0
 
@@ -590,7 +735,7 @@ namespace Microsoft.OpenApi.Models
         /// <summary>
         /// Field: version2_0
         /// </summary>
-        public static readonly Version version2_0 = new Version(2, 0);
+        public static readonly Version version2_0 = new(2, 0);
 
         /// <summary>
         /// Field: BasePath

@@ -1,9 +1,10 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
 using System.IO;
 using System.Linq;
-using Microsoft.OpenApi.Readers.ParseNodes;
+using Microsoft.OpenApi.Reader;
+using Microsoft.OpenApi.Reader.ParseNodes;
 using SharpYaml.Serialization;
 
 namespace Microsoft.OpenApi.Readers.Tests
@@ -17,8 +18,9 @@ namespace Microsoft.OpenApi.Readers.Tests
             var yamlNode = yamlStream.Documents.First().RootNode;
 
             var context = new ParsingContext(new OpenApiDiagnostic());
+            var asJsonNode = yamlNode.ToJsonNode();
 
-            return new MapNode(context, (YamlMappingNode)yamlNode);
+            return new MapNode(context, asJsonNode);
         }
     }
 }

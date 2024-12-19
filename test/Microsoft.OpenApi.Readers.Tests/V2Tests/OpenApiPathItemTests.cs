@@ -1,15 +1,14 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using FluentAssertions;
-using Microsoft.OpenApi.Extensions;
 using Microsoft.OpenApi.Models;
-using Microsoft.OpenApi.Readers.ParseNodes;
-using Microsoft.OpenApi.Readers.V2;
+using Microsoft.OpenApi.Reader.ParseNodes;
+using Microsoft.OpenApi.Reader.V2;
 using Xunit;
 
 namespace Microsoft.OpenApi.Readers.Tests.V2Tests
@@ -19,22 +18,22 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
     {
         private const string SampleFolderPath = "V2Tests/Samples/OpenApiPathItem/";
 
-        private static readonly OpenApiPathItem _basicPathItemWithFormData = new OpenApiPathItem()
+        private static readonly OpenApiPathItem _basicPathItemWithFormData = new()
         {
             Parameters = new List<OpenApiParameter>
             {
-                new OpenApiParameter()
+                new()
                 {
                     Name = "id",
                     In = ParameterLocation.Path,
                     Description = "ID of pet to use",
                     Required = true,
-                    Schema = new OpenApiSchema()
+                    Schema = new()
                     {
-                        Type = "array",
-                        Items = new OpenApiSchema()
+                        Type = JsonSchemaType.Array,
+                        Items = new()
                         {
-                            Type = "string"
+                            Type = JsonSchemaType.String
                         }
                     },
                     Style = ParameterStyle.Simple
@@ -42,44 +41,45 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
             },
             Operations =
             {
-                [OperationType.Put] = new OpenApiOperation
+                [OperationType.Put] = new()
                 {
                     Summary = "Puts a pet in the store with form data",
                     Description = "",
                     OperationId = "putPetWithForm",
                     Parameters = new List<OpenApiParameter>
                     {
-                        new OpenApiParameter
+                        new()
                         {
                             Name = "petId",
                             In = ParameterLocation.Path,
                             Description = "ID of pet that needs to be updated",
                             Required = true,
-                            Schema = new OpenApiSchema
+                            Schema = new()
                             {
-                                Type = "string"
+                                Type = JsonSchemaType.String
                             }
                         }
                     },
-                    RequestBody = new OpenApiRequestBody
+                    RequestBody = new()
                     {
                         Content =
                         {
-                            ["application/x-www-form-urlencoded"] = new OpenApiMediaType
+                            ["application/x-www-form-urlencoded"] = new()
                             {
-                                Schema = new OpenApiSchema
+                                Schema = new()
                                 {
+                                    Type = JsonSchemaType.Object,
                                     Properties =
                                     {
-                                        ["name"] = new OpenApiSchema
+                                        ["name"] = new()
                                         {
                                             Description = "Updated name of the pet",
-                                            Type = "string"
+                                            Type = JsonSchemaType.String
                                         },
-                                        ["status"] = new OpenApiSchema
+                                        ["status"] = new()
                                         {
                                             Description = "Updated status of the pet",
-                                            Type = "string"
+                                            Type = JsonSchemaType.String
                                         }
                                     },
                                     Required = new HashSet<string>
@@ -88,21 +88,22 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
                                     }
                                 }
                             },
-                            ["multipart/form-data"] = new OpenApiMediaType
+                            ["multipart/form-data"] = new()
                             {
-                                Schema = new OpenApiSchema
+                               Schema = new()
                                 {
+                                    Type = JsonSchemaType.Object,
                                     Properties =
                                     {
-                                        ["name"] = new OpenApiSchema
+                                        ["name"] = new()
                                         {
                                             Description = "Updated name of the pet",
-                                            Type = "string"
+                                            Type = JsonSchemaType.String
                                         },
-                                        ["status"] = new OpenApiSchema
+                                        ["status"] = new()
                                         {
                                             Description = "Updated status of the pet",
-                                            Type = "string"
+                                            Type = JsonSchemaType.String
                                         }
                                     },
                                     Required = new HashSet<string>
@@ -113,82 +114,83 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
                             }
                         }
                     },
-                    Responses = new OpenApiResponses
+                    Responses = new()
                     {
-                        ["200"] = new OpenApiResponse
+                        ["200"] = new()
                         {
                             Description = "Pet updated.",
                             Content = new Dictionary<string, OpenApiMediaType>
                                 {
-                                    ["application/json"] = new OpenApiMediaType(),
-                                    ["application/xml"] = new OpenApiMediaType()
+                                    ["application/json"] = new(),
+                                    ["application/xml"] = new()
                                 }
                         },
-                        ["405"] = new OpenApiResponse
+                        ["405"] = new()
                         {
                             Description = "Invalid input",
                             Content = new Dictionary<string, OpenApiMediaType>
                                 {
-                                    ["application/json"] = new OpenApiMediaType(),
-                                    ["application/xml"] = new OpenApiMediaType()
+                                    ["application/json"] = new(),
+                                    ["application/xml"] = new()
                                 }
                         }
                     }
                 },
-                [OperationType.Post] = new OpenApiOperation
+                [OperationType.Post] = new()
                 {
                     Summary = "Posts a pet in the store with form data",
                     Description = "",
                     OperationId = "postPetWithForm",
                     Parameters = new List<OpenApiParameter>
                     {
-                        new OpenApiParameter
+                        new()
                         {
                             Name = "petId",
                             In = ParameterLocation.Path,
                             Description = "ID of pet that needs to be updated",
                             Required = true,
-                            Schema = new OpenApiSchema
+                            Schema = new()
                             {
-                                Type = "string"
+                                Type = JsonSchemaType.String
                             }
                         },
-                        new OpenApiParameter
+                        new()
                         {
                             Name = "petName",
                             In = ParameterLocation.Path,
                             Description = "Name of pet that needs to be updated",
                             Required = true,
-                            Schema = new OpenApiSchema
+                            Schema = new()
                             {
-                                Type = "string"
+                                Type = JsonSchemaType.String
                             }
                         }
                     },
-                    RequestBody = new OpenApiRequestBody
+                    RequestBody = new()
                     {
                         Content =
                         {
-                            ["application/x-www-form-urlencoded"] = new OpenApiMediaType
+                            ["application/x-www-form-urlencoded"] = new()
                             {
-                                Schema = new OpenApiSchema
+                                Schema = new()
                                 {
+                                    Type = JsonSchemaType.Object,
                                     Properties =
                                     {
-                                        ["name"] = new OpenApiSchema
+                                        ["name"] = new()
                                         {
                                             Description = "Updated name of the pet",
-                                            Type = "string"
+                                            Type = JsonSchemaType.String
                                         },
-                                        ["status"] = new OpenApiSchema
+                                        ["status"] = new()
                                         {
                                             Description = "Updated status of the pet",
-                                            Type = "string"
+                                            Type = JsonSchemaType.String
                                         },
-                                        ["skill"] = new OpenApiSchema
+                                        ["skill"] = new()
                                         {
                                             Description = "Updated skill of the pet",
-                                            Type = "string"
+                                            Type = JsonSchemaType.String
                                         }
                                     },
                                     Required = new HashSet<string>
@@ -197,26 +199,27 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
                                     }
                                 }
                             },
-                            ["multipart/form-data"] = new OpenApiMediaType
+                            ["multipart/form-data"] = new()
                             {
-                                Schema = new OpenApiSchema
+                                Schema = new()
                                 {
+                                    Type = JsonSchemaType.Object,
                                     Properties =
                                     {
-                                        ["name"] = new OpenApiSchema
+                                        ["name"] = new()
                                         {
                                             Description = "Updated name of the pet",
-                                            Type = "string"
+                                            Type = JsonSchemaType.String
                                         },
-                                        ["status"] = new OpenApiSchema
+                                        ["status"] = new()
                                         {
                                             Description = "Updated status of the pet",
-                                            Type = "string"
+                                            Type = JsonSchemaType.String
                                         },
-                                        ["skill"] = new OpenApiSchema
+                                        ["skill"] = new()
                                         {
                                             Description = "Updated skill of the pet",
-                                            Type = "string"
+                                            Type = JsonSchemaType.String
                                         }
                                     },
                                     Required = new HashSet<string>
@@ -227,15 +230,15 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
                             }
                         }
                     },
-                    Responses = new OpenApiResponses
+                    Responses = new()
                     {
-                        ["200"] = new OpenApiResponse
+                        ["200"] = new()
                         {
                             Description = "Pet updated.",
                             Content = new Dictionary<string, OpenApiMediaType>
                                 {
-                                    ["application/json"] = new OpenApiMediaType(),
-                                    ["application/xml"] = new OpenApiMediaType()
+                                    ["application/json"] = new(),
+                                    ["application/xml"] = new()
                                 }
                         }
                     }
@@ -298,6 +301,5 @@ namespace Microsoft.OpenApi.Readers.Tests.V2Tests
             Assert.True(pathItem.Operations[OperationType.Post].RequestBody != null);
             Assert.Equal(2, pathItem.Operations.Count(o => o.Value.RequestBody != null));
         }
-
     }
 }

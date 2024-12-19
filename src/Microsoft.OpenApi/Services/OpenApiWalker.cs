@@ -1,12 +1,14 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license. 
+// Licensed under the MIT license.
 
 using System;
 using System.Collections.Generic;
-using Microsoft.OpenApi.Models;
-using Microsoft.OpenApi.Interfaces;
+using System.Text.Json.Nodes;
 using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Extensions;
+using Microsoft.OpenApi.Interfaces;
+using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi.Models.References;
 
 namespace Microsoft.OpenApi.Services
 {
@@ -15,9 +17,10 @@ namespace Microsoft.OpenApi.Services
     /// </summary>
     public class OpenApiWalker
     {
+        private OpenApiDocument _hostDocument;
         private readonly OpenApiVisitorBase _visitor;
-        private readonly Stack<OpenApiSchema> _schemaLoop = new Stack<OpenApiSchema>();
-        private readonly Stack<OpenApiPathItem> _pathItemLoop = new Stack<OpenApiPathItem>();
+        private readonly Stack<OpenApiSchema> _schemaLoop = new();
+        private readonly Stack<OpenApiPathItem> _pathItemLoop = new();
 
         /// <summary>
         /// Initializes the <see cref="OpenApiWalker"/> class.
@@ -38,6 +41,7 @@ namespace Microsoft.OpenApi.Services
                 return;
             }
 
+            _hostDocument = doc;
             _schemaLoop.Clear();
             _pathItemLoop.Clear();
 
@@ -46,12 +50,12 @@ namespace Microsoft.OpenApi.Services
             Walk(OpenApiConstants.Info, () => Walk(doc.Info));
             Walk(OpenApiConstants.Servers, () => Walk(doc.Servers));
             Walk(OpenApiConstants.Paths, () => Walk(doc.Paths));
+            Walk(OpenApiConstants.Webhooks, () => Walk(doc.Webhooks));
             Walk(OpenApiConstants.Components, () => Walk(doc.Components));
             Walk(OpenApiConstants.Security, () => Walk(doc.SecurityRequirements));
             Walk(OpenApiConstants.ExternalDocs, () => Walk(doc.ExternalDocs));
             Walk(OpenApiConstants.Tags, () => Walk(doc.Tags));
             Walk(doc as IOpenApiExtensible);
-
         }
 
         /// <summary>
@@ -69,11 +73,24 @@ namespace Microsoft.OpenApi.Services
             // Visit tags
             if (tags != null)
             {
-                for (int i = 0; i < tags.Count; i++)
+                for (var i = 0; i < tags.Count; i++)
                 {
                     Walk(i.ToString(), () => Walk(tags[i]));
                 }
             }
+        }
+
+        /// <summary>
+        /// Visits <see cref="OpenApiExternalDocs"/> and child objects
+        /// </summary>
+        internal void Walk(string externalDocs)
+        {
+            if (externalDocs == null)
+            {
+                return;
+            }
+
+            _visitor.Visit(externalDocs);
         }
 
         /// <summary>
@@ -88,11 +105,11 @@ namespace Microsoft.OpenApi.Services
 
             _visitor.Visit(externalDocs);
         }
-
+#nullable enable
         /// <summary>
         /// Visits <see cref="OpenApiComponents"/> and child objects
         /// </summary>
-        internal void Walk(OpenApiComponents components)
+        internal void Walk(OpenApiComponents? components)
         {
             if (components == null)
             {
@@ -100,11 +117,6 @@ namespace Microsoft.OpenApi.Services
             }
 
             _visitor.Visit(components);
-
-            if (components == null)
-            {
-                return;
-            }
 
             Walk(OpenApiConstants.Schemas, () =>
             {
@@ -116,7 +128,7 @@ namespace Microsoft.OpenApi.Services
                     }
                 }
             });
-            
+
             Walk(OpenApiConstants.SecuritySchemes, () =>
             {
                 if (components.SecuritySchemes != null)
@@ -127,7 +139,7 @@ namespace Microsoft.OpenApi.Services
                     }
                 }
             });
-            
+
             Walk(OpenApiConstants.Callbacks, () =>
             {
                 if (components.Callbacks != null)
@@ -135,6 +147,17 @@ namespace Microsoft.OpenApi.Services
                     foreach (var item in components.Callbacks)
                     {
                         Walk(item.Key, () => Walk(item.Value, isComponent: true));
+                    }
+                }
+            });
+
+            Walk(OpenApiConstants.PathItems, () =>
+            {
+                if (components.PathItems != null)
+                {
+                    foreach (var path in components.PathItems)
+                    {
+                        Walk(path.Key, () => Walk(path.Value, isComponent: true));
                     }
                 }
             });
@@ -208,6 +231,7 @@ namespace Microsoft.OpenApi.Services
             Walk(components as IOpenApiExtensible);
         }
 
+#nullable restore
         /// <summary>
         /// Visits <see cref="OpenApiPaths"/> and child objects
         /// </summary>
@@ -230,6 +254,31 @@ namespace Microsoft.OpenApi.Services
                     _visitor.CurrentKeys.Path = null;
                 }
             }
+
+        }
+
+        /// <summary>
+        /// Visits Webhooks and child objects
+        /// </summary>
+        internal void Walk(IDictionary<string, OpenApiPathItem> webhooks)
+        {
+            if (webhooks == null)
+            {
+                return;
+            }
+
+            _visitor.Visit(webhooks);
+
+            // Visit Webhooks
+            if (webhooks != null)
+            {
+                foreach (var pathItem in webhooks)
+                {
+                    _visitor.CurrentKeys.Path = pathItem.Key;
+                    Walk(pathItem.Key, () => Walk(pathItem.Value));// JSON Pointer uses ~1 as an escape character for /
+                    _visitor.CurrentKeys.Path = null;
+                }
+            };
         }
 
         /// <summary>
@@ -247,7 +296,7 @@ namespace Microsoft.OpenApi.Services
             // Visit Servers
             if (servers != null)
             {
-                for (int i = 0; i < servers.Count; i++)
+                for (var i = 0; i < servers.Count; i++)
                 {
                     Walk(i.ToString(), () => Walk(servers[i]));
                 }
@@ -297,7 +346,7 @@ namespace Microsoft.OpenApi.Services
         }
 
         /// <summary>
-        /// Visits <see cref="IOpenApiExtension"/> 
+        /// Visits <see cref="IOpenApiExtension"/>
         /// </summary>
         internal void Walk(IOpenApiExtension extension)
         {
@@ -340,8 +389,14 @@ namespace Microsoft.OpenApi.Services
         /// </summary>
         internal void Walk(OpenApiCallback callback, bool isComponent = false)
         {
-            if (callback == null || ProcessAsReference(callback, isComponent))
+            if (callback == null)
             {
+                return;
+            }
+
+            if (callback is OpenApiCallbackReference)
+            {
+                Walk(callback as IOpenApiReferenceable);
                 return;
             }
 
@@ -364,8 +419,14 @@ namespace Microsoft.OpenApi.Services
         /// </summary>
         internal void Walk(OpenApiTag tag)
         {
-            if (tag == null || ProcessAsReference(tag))
+            if (tag == null)
             {
+                return;
+            }
+
+            if (tag is OpenApiTagReference)
+            {
+                Walk(tag as IOpenApiReferenceable);
                 return;
             }
 
@@ -429,10 +490,16 @@ namespace Microsoft.OpenApi.Services
         /// <summary>
         /// Visits <see cref="OpenApiPathItem"/> and child objects
         /// </summary>
-        internal void Walk(OpenApiPathItem pathItem)
+        internal void Walk(OpenApiPathItem pathItem, bool isComponent = false)
         {
             if (pathItem == null)
             {
+                return;
+            }
+
+            if (pathItem is OpenApiPathItemReference)
+            {
+                Walk(pathItem as IOpenApiReferenceable);
                 return;
             }
 
@@ -447,8 +514,7 @@ namespace Microsoft.OpenApi.Services
 
             _visitor.Visit(pathItem);
 
-            // The path may be a reference
-            if (pathItem != null && !ProcessAsReference(pathItem))
+            if (pathItem != null)
             {
                 Walk(OpenApiConstants.Parameters, () => Walk(pathItem.Parameters));
                 Walk(pathItem.Operations);
@@ -456,7 +522,7 @@ namespace Microsoft.OpenApi.Services
             _visitor.Visit(pathItem as IOpenApiExtensible);
 
             _pathItemLoop.Pop();
-        }
+         }
 
         /// <summary>
         /// Visits dictionary of <see cref="OpenApiOperation"/>
@@ -516,13 +582,12 @@ namespace Microsoft.OpenApi.Services
 
             if (securityRequirements != null)
             {
-                for (int i = 0; i < securityRequirements.Count; i++)
+                for (var i = 0; i < securityRequirements.Count; i++)
                 {
                     Walk(i.ToString(), () => Walk(securityRequirements[i]));
                 }
             }
         }
-
 
         /// <summary>
         /// Visits list of <see cref="OpenApiParameter"/>
@@ -538,7 +603,7 @@ namespace Microsoft.OpenApi.Services
 
             if (parameters != null)
             {
-                for (int i = 0; i < parameters.Count; i++)
+                for (var i = 0; i < parameters.Count; i++)
                 {
                     Walk(i.ToString(), () => Walk(parameters[i]));
                 }
@@ -550,8 +615,14 @@ namespace Microsoft.OpenApi.Services
         /// </summary>
         internal void Walk(OpenApiParameter parameter, bool isComponent = false)
         {
-            if (parameter == null || ProcessAsReference(parameter, isComponent))
+            if (parameter == null)
             {
+                return;
+            }
+
+            if (parameter is OpenApiParameterReference)
+            {
+                Walk(parameter as IOpenApiReferenceable);
                 return;
             }
 
@@ -592,8 +663,14 @@ namespace Microsoft.OpenApi.Services
         /// </summary>
         internal void Walk(OpenApiResponse response, bool isComponent = false)
         {
-            if (response == null || ProcessAsReference(response, isComponent))
+            if (response == null)
             {
+                return;
+            }
+
+            if (response is OpenApiResponseReference)
+            {
+                Walk(response as IOpenApiReferenceable);
                 return;
             }
 
@@ -609,19 +686,22 @@ namespace Microsoft.OpenApi.Services
         /// </summary>
         internal void Walk(OpenApiRequestBody requestBody, bool isComponent = false)
         {
-            if (requestBody == null || ProcessAsReference(requestBody, isComponent))
+            if (requestBody == null)
             {
+                return;
+            }
+
+            if (requestBody is OpenApiRequestBodyReference)
+            {
+                Walk(requestBody as IOpenApiReferenceable);
                 return;
             }
 
             _visitor.Visit(requestBody);
 
-            if (requestBody != null)
+            if (requestBody is {Content: not null})
             {
-                if (requestBody.Content != null)
-                {
-                    Walk(OpenApiConstants.Content, () => Walk(requestBody.Content));
-                }
+                Walk(OpenApiConstants.Content, () => Walk(requestBody.Content));
             }
             Walk(requestBody as IOpenApiExtensible);
         }
@@ -778,6 +858,11 @@ namespace Microsoft.OpenApi.Services
                 Walk("items", () => Walk(schema.Items));
             }
 
+            if (schema.Not != null)
+            {
+                Walk("not", () => Walk(schema.Not));
+            }
+
             if (schema.AllOf != null)
             {
                 Walk("allOf", () => Walk(schema.AllOf));
@@ -816,6 +901,7 @@ namespace Microsoft.OpenApi.Services
             _schemaLoop.Pop();
         }
 
+
         /// <summary>
         /// Visits dictionary of <see cref="OpenApiExample"/>
         /// </summary>
@@ -840,9 +926,9 @@ namespace Microsoft.OpenApi.Services
         }
 
         /// <summary>
-        /// Visits <see cref="IOpenApiAny"/> and child objects
+        /// Visits <see cref="OpenApiAny"/> and child objects
         /// </summary>
-        internal void Walk(IOpenApiAny example)
+        internal void Walk(JsonNode example)
         {
             if (example == null)
             {
@@ -857,8 +943,14 @@ namespace Microsoft.OpenApi.Services
         /// </summary>
         internal void Walk(OpenApiExample example, bool isComponent = false)
         {
-            if (example == null || ProcessAsReference(example, isComponent))
+            if (example == null)
             {
+                return;
+            }
+
+            if (example is OpenApiExampleReference)
+            {
+                Walk(example as IOpenApiReferenceable);
                 return;
             }
 
@@ -881,7 +973,7 @@ namespace Microsoft.OpenApi.Services
             // Visit Examples
             if (examples != null)
             {
-                for (int i = 0; i < examples.Count; i++)
+                for (var i = 0; i < examples.Count; i++)
                 {
                     Walk(i.ToString(), () => Walk(examples[i]));
                 }
@@ -898,10 +990,10 @@ namespace Microsoft.OpenApi.Services
                 return;
             }
 
-            // Visit Schemass
+            // Visit Schemas
             if (schemas != null)
             {
-                for (int i = 0; i < schemas.Count; i++)
+                for (var i = 0; i < schemas.Count; i++)
                 {
                     Walk(i.ToString(), () => Walk(schemas[i]));
                 }
@@ -963,8 +1055,14 @@ namespace Microsoft.OpenApi.Services
         /// </summary>
         internal void Walk(OpenApiLink link, bool isComponent = false)
         {
-            if (link == null || ProcessAsReference(link, isComponent))
+            if (link == null)
             {
+                return;
+            }
+
+            if (link is OpenApiLinkReference)
+            {
+                Walk(link as IOpenApiReferenceable);
                 return;
             }
 
@@ -978,8 +1076,14 @@ namespace Microsoft.OpenApi.Services
         /// </summary>
         internal void Walk(OpenApiHeader header, bool isComponent = false)
         {
-            if (header == null || ProcessAsReference(header, isComponent))
+            if (header == null)
             {
+                return;
+            }
+
+            if (header is OpenApiHeaderReference)
+            {
+                Walk(header as IOpenApiReferenceable);
                 return;
             }
 
@@ -1001,6 +1105,11 @@ namespace Microsoft.OpenApi.Services
                 return;
             }
 
+            foreach(var securityScheme in securityRequirement.Keys)
+            {
+                Walk(securityScheme);
+            }
+
             _visitor.Visit(securityRequirement);
             Walk(securityRequirement as IOpenApiExtensible);
         }
@@ -1010,8 +1119,14 @@ namespace Microsoft.OpenApi.Services
         /// </summary>
         internal void Walk(OpenApiSecurityScheme securityScheme, bool isComponent = false)
         {
-            if (securityScheme == null || ProcessAsReference(securityScheme, isComponent))
+            if (securityScheme == null)
             {
+                return;
+            }
+
+            if (securityScheme is OpenApiSecuritySchemeReference)
+            {
+                Walk(securityScheme as IOpenApiReferenceable);
                 return;
             }
 
@@ -1058,6 +1173,7 @@ namespace Microsoft.OpenApi.Services
                 case OpenApiOAuthFlow e: Walk(e); break;
                 case OpenApiOperation e: Walk(e); break;
                 case OpenApiParameter e: Walk(e); break;
+                case OpenApiPaths e: Walk(e); break;
                 case OpenApiRequestBody e: Walk(e); break;
                 case OpenApiResponse e: Walk(e); break;
                 case OpenApiSchema e: Walk(e); break;
@@ -1089,7 +1205,8 @@ namespace Microsoft.OpenApi.Services
         /// </summary>
         private bool ProcessAsReference(IOpenApiReferenceable referenceable, bool isComponent = false)
         {
-            var isReference = referenceable.Reference != null && !isComponent;
+            var isReference = referenceable.Reference != null &&
+                              (!isComponent || referenceable.UnresolvedReference);
             if (isReference)
             {
                 Walk(referenceable);
